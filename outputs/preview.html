@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>html,body{margin:0;padding:0;background:#fff;}</style>
+</head>
+<body>
+  <div id="main" style="width:900px;height:600px;"></div>
+  <script>
+// 获取容器
+var chartDom = document.getElementById('main');
+var myChart = echarts.init(chartDom);
+var option;
+
+// 模拟数据生成函数
+/**
+ * 模拟真实实验数据的空间聚集性：约50%样本向区域中心收缩，增强视觉可信度
+ * @param {number} count - 数据点数量
+ * @param {number} minX - X轴数据范围最小值
+ * @param {number} maxX - X轴数据范围最大值
+ * @param {number} minY - Y轴数据范围最小值
+ * @param {number} maxY - Y轴数据范围最大值
+ * @returns {Array<Array<number>>} 二维坐标数组 [[x, y], ...]
+ */
+function generateData(count, minX, maxX, minY, maxY) {
+    var data = [];
+    for (var i = 0; i < count; i++) {
+        var x = Math.random() * (maxX - minX) + minX;
+        var y = Math.random() * (maxY - minY) + minY;
+        // 添加一些正态分布的倾向，让点更聚集
+        if (Math.random() > 0.5) {
+             x = x * 0.5 + (minX + maxX)/2 * 0.5;
+             y = y * 0.5 + (minY + maxY)/2 * 0.5;
+        }
+        data.push([x, y]);
+    }
+    return data;
+}
+
+// 统计信息常量（便于维护与国际化）
+var STATS_CONFIG = {
+    chiSquare: '508.458',
+    pValue: 'P < 0.01',
+    legendPositionLeft: '15%',
+    legendPositionTop: 60,
+    statsBoxLeft: '65%',
+    statsBoxBottom: '15%'
+};
+
+// 定义系列配置（重命名 xRange/yRange → xDataRange/yDataRange）
+var seriesConfig = [
+    { name: 'CD', color: '#A6D7E8', count: 35, xDataRange: [-20, 0], yDataRange: [0, 4] },
+    { name: 'BD', color: '#005B8C', count: 80, xDataRange: [-2, 2], yDataRange: [0, 3] },
+    { name: 'AD', color: '#9FD666', count: 146, xDataRange: [5, 80], yDataRange: [0, 10] },
+    { name: 'CF', color: '#007CC3', count: 215, xDataRange: [-40, -5], yDataRange: [-6, 0] },
+    { name: 'BF', color: '#999999', count: 77, xDataRange: [-2, 2], yDataRange: [-6, 0] },
+    { name: 'AF', color: '#FFD6A6', count: 74, xDataRange: [0, 30], yDataRange: [-4, 0] }
+];
+
+var seriesList = seriesConfig.map(function(conf) {
+    return {
+        name: conf.name,
+        type: 'scatter',
+        symbolSize: 10,
+        data: generateData(conf.count, conf.xDataRange[0], conf.xDataRange[1], conf.yDataRange[0], conf.yDataRange[1]),
+        itemStyle: {
+            color: conf.color,
+            opacity: 0.8
+        }
+    };
+});
+
+option = {
+    backgroundColor: '#fff',
+    title: {
+        text: '散点图',
+        left: 'center',
+        top: 0,
+        backgroundColor: '#00B4B4', // 顶部青色条
+        width: '100%',
+        textStyle: {
+            color: '#000',
+            fontSize: 18,
+            fontFamily: 'KaiTi, cursive, sans-serif'
+        },
+        padding: [10, 0]
+    },
+    tooltip: {
+        trigger: 'item',
+        formatter: '{a}: {c}'
+    },
+    legend: {
+        data: ['CD', 'BD', 'AD', 'CF', 'BF', 'AF'],
+        left: STATS_CONFIG.legendPositionLeft,
+        top: STATS_CONFIG.legendPositionTop,
+        orient: 'vertical',
+        itemWidth: 10,
+        itemHeight: 10,
+        backgroundColor: 'white',
+        borderColor: '#ccc',
+        borderWidth: 1,
+        padding: [8, 12],
+        textStyle: {
+            fontSize: 14,
+            color: '#333'
+        }
+    },
+    grid: {
+        left: '15%',
+        right: '15%',
+        top: 100, // 留出标题和图例空间
+        bottom: 60
+    },
+    xAxis: {
+        type: 'value',
+        min: -50,
+        max: 100,
+        interval: 50,
+        splitNumber: 4,
+        name: 'Centroid offset (mm)',
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLine: {
+            lineStyle: { color: '#000' }
+        },
+        axisTick: {
+            lineStyle: { color: '#000' }
+        },
+        axisLabel: {
+            color: '#000',
+            fontSize: 14,
+            formatter: function(value) {
+                if (value === -50) return '-50(C)';
+                if (value === 0) return '0(B)';
+                if (value === 100) return '100(A)';
+                return value;
+            }
+        },
+        splitLine: {
+            show: false
+        }
+    },
+    yAxis: {
+        type: 'value',
+        min: -8,
+        max: 10,
+        interval: 2,
+        splitNumber: 10,
+        name: 'Edge height difference (mm)',
+        nameLocation: 'middle',
+        nameGap: 50,
+        axisLine: {
+            lineStyle: { color: '#000' }
+        },
+        axisTick: {
+            lineStyle: { color: '#000' }
+        },
+        axisLabel: {
+            color: '#000',
+            fontSize: 14,
+            formatter: function(value) {
+                if (value === 10) return '10(D)';
+                if (value === 0) return '0(E)';
+                if (value === -8) return '-8(F)';
+                return value;
+            }
+        },
+        splitLine: {
+            show: false
+        }
+    },
+    series: seriesList,
+    // 辅助线（红色虚线十字）
+    markLine: {
+        symbol: ['none', 'none'],
+        lineStyle: {
+            color: 'red',
+            type: 'dashed',
+            opacity: 0.5,
+            width: 2
+        },
+        data: [
+            { xAxis: 0 },
+            { yAxis: 0 }
+        ]
+    },
+    // 右下角统计表格模拟
+    graphic: {
+        elements: [
+            {
+                type: 'group',
+                left: STATS_CONFIG.statsBoxLeft,
+                bottom: STATS_CONFIG.statsBoxBottom,
+                children: [
+                    // 背景框
+                    {
+                        type: 'rect',
+                        shape: { width: 220, height: 130, r: 2 },
+                        style: { fill: 'rgba(232,232,232,0.9)', stroke: '#999', lineWidth: 1 }
+                    },
+                    // 标题栏背景
+                    {
+                        type: 'rect',
+                        shape: { width: 220, height: 25, r: 2 },
+                        style: { fill: '#999' }
+                    },
+                    // 标题文字
+                    {
+                        type: 'text',
+                        style: {
+                            text: 'Count & χ² Test',
+                            fill: '#fff',
+                            font: '14px sans-serif',
+                            x: 110,
+                            y: 18,
+                            textAlign: 'center'
+                        }
+                    },
+                    // 第一行数据 (CD, BD, AD)
+                    {
+                        type: 'text',
+                        style: { text: '● 35', fill: '#A6D7E8', font: '14px sans-serif', x: 20, y: 50 }
+                    },
+                    {
+                        type: 'text',
+                        style: { text: '● 80', fill: '#005B8C', font: '14px sans-serif', x: 80, y: 50 }
+                    },
+                    {
+                        type: 'text',
+                        style: { text: '● 146', fill: '#9FD666', font: '14px sans-serif', x: 150, y: 50 }
+                    },
+                    // 第二行数据 (CF, BF, AF)
+                    {
+                        type: 'text',
+                        style: { text: '● 215', fill: '#007CC3', font: '14px sans-serif', x: 20, y: 80 }
+                    },
+                    {
+                        type: 'text',
+                        style: { text: '● 77', fill: '#999999', font: '14px sans-serif', x: 80, y: 80 }
+                    },
+                    {
+                        type: 'text',
+                        style: { text: '● 74', fill: '#FFD6A6', font: '14px sans-serif', x: 150, y: 80 }
+                    },
+                    // 底部统计值
+                    {
+                        type: 'text',
+                        style: { text: 'χ² =' + STATS_CONFIG.chiSquare, fill: '#333', font: '14px sans-serif', x: 30, y: 110 }
+                    },
+                    {
+                        type: 'text',
+                        style: { text: STATS_CONFIG.pValue, fill: '#333', font: '14px sans-serif', x: 160, y: 110 }
+                    }
+                ]
+            }
+        ]
+    }
+};
+
+myChart.setOption(option);
+  </script>
+</body>
+</html>
