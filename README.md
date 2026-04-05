@@ -1,10 +1,10 @@
 # 多智能体图表复现框架
 
-基于阿里云 DashScope API 的多智能体流水线，从参考图表自动生成 ECharts 代码，通过多轮迭代优化实现高质量图表复现。
+基于阿里云 DashScope API 的多智能体流水线，从参考图表自动生成 Matplotlib 代码，通过多轮迭代优化实现高质量图表复现。
 
 ## 核心功能
 
-- **Agent 1**：多模态模型读图生成 ECharts 代码
+- **Agent 1**：多模态模型读图生成 Matplotlib 代码
 - **Agent 2**：视觉差异评估（颜色、坐标轴、文本、趋势）
 - **Agent 3**：代码修正指导
 - **Agent 4**：融合反馈执行渐进式修订
@@ -61,39 +61,6 @@ python experiments/main.py -i data/test.png -o outputs --max-loops 5 --threshold
 | `-o` / `--out` | 输出目录 | `outputs` |
 | `--max-loops` | 最大迭代轮数 | `5` |
 | `--threshold` | 验证通过阈值（0~1） | `0.75` |
-
-## 工作流程
-
-```
-参考图 → Agent1(生成代码) → 渲染截图 → Agent2(视觉评估) 
-       → Agent3(代码分析) → Agent4(修订代码) → 多维验证器
-       → 未通过则进入下一轮迭代
-```
-
-## 多维验证器
-
-融合四个维度评估图表一致性：
-
-1. **颜色一致性**：RGB 直方图 + 网格色块匹配 + HSV 距离
-2. **文本一致性**：OCR + BLEU 评分 + 布局偏差
-3. **结构一致性**：SSIM + 空间拓扑关系
-4. **VLM 感知**：语义和整体观感补充
-
-支持图表类型自适应（line/bar/scatter/pie/radar/heatmap），动态调整权重和阈值。
-
-## 项目结构
-
-```
-MultiAgentFrame-main/
-├── Agents/              # 四个智能体实现
-├── Authenticator/       # 多维验证器
-├── utils/               # API 调用和渲染工具
-├── experiments/         # 主入口
-├── data/                # 测试数据
-├── outputs/             # 输出目录
-├── requirements.txt     # 依赖列表
-└── .env                 # 环境变量配置
-```
 
 ## 依赖说明
 
