@@ -6,7 +6,10 @@
 from __future__ import annotations
 
 import os
+<<<<<<< HEAD
 from datetime import datetime
+=======
+>>>>>>> 2ac731af3f1338ccdc6d8b06e9a74d82350364e0
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -28,8 +31,12 @@ def run_full_pipeline(
     返回 (是否验证通过, 最终 JS 代码路径, 最终渲染 PNG 路径, 最后一轮说明摘要)。
     """
     os.makedirs(out_dir, exist_ok=True)
+<<<<<<< HEAD
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     code_path = os.path.join(out_dir, f"echarts_{timestamp}.js")
+=======
+    code_path = os.path.join(out_dir, "current_echarts.js")
+>>>>>>> 2ac731af3f1338ccdc6d8b06e9a74d82350364e0
     html_path = os.path.join(out_dir, "preview.html")
     gen_png = os.path.join(out_dir, "generated_chart.png")
 

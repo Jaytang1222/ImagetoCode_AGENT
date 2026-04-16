@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+<<<<<<< HEAD
 env/
 venv/
 ENV/
@@ -35,3 +36,70 @@ Thumbs.db
 
 # 日志文件
 *.log
+=======
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment Variables
+.env
+.env.local
+
+# Output Files
+outputs/
+*.png
+*.jpg
+*.jpeg
+*.html
+*.js
+!requirements.txt
+
+# Logs
+*.log
+
+# Playwright
+.playwright/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Tesseract
+tesseract/
+>>>>>>> 2ac731af3f1338ccdc6d8b06e9a74d82350364e0
