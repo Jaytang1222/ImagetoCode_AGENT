@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多智能体图表复现系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 背景动画 -->
+    <div class="bg-animation">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="app-container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <div class="logo-text">
+                    <h1>多智能体图表复现系统</h1>
+                    <p>Multi-Agent Chart Reproduction System</p>
+                </div>
+            </div>
+            <div class="header-badge">V2.0</div>
+        </header>
+
+        <!-- 主要内容区 -->
+        <main class="main-content">
+            <!-- 上传区域 -->
+            <section class="upload-section" id="uploadSection">
+                <div class="upload-card">
+                    <!-- 模式切换 -->
+                    <div class="mode-switch">
+                        <button class="mode-btn active" data-mode="upload" id="uploadModeBtn">
+                            📤 上传文件
+                        </button>
+                        <button class="mode-btn" data-mode="path" id="pathModeBtn">
+                            🔗 指定路径
+                        </button>
+                    </div>
+
+                    <!-- 上传文件模式 -->
+                    <div id="uploadMode" class="mode-content active">
+                        <div class="upload-icon">📊</div>
+                        <h2>上传参考图表</h2>
+                        <p class="upload-desc">支持 PNG、JPG 格式，最大 16MB</p>
+                        
+                        <div class="upload-area" id="uploadArea">
+                            <input type="file" id="fileInput" accept=".png,.jpg,.jpeg" hidden>
+                            <div class="upload-placeholder">
+                                <div class="upload-arrow">⬆️</div>
+                                <p>拖拽图片到此处或点击上传</p>
+                            </div>
+                            <div class="upload-preview" id="uploadPreview" style="display: none;">
+                                <img id="previewImage" src="" alt="预览">
+                                <button class="remove-btn" id="removeBtn">✕</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 指定路径模式 -->
+                    <div id="pathMode" class="mode-content">
+                        <div class="upload-icon">🔗</div>
+                        <h2>指定图片路径</h2>
+                        <p class="upload-desc">输入服务器上已存在的图片路径</p>
+                        
+                        <div class="path-input-group">
+                            <label for="imagePath">图片路径：</label>
+                            <input type="text" id="imagePath" placeholder="例如: input.png 或 uploads/input_123.png" 
+                                   value="input.png">
+                            <div class="path-hint">
+                                💡 提示：路径相对于项目根目录，确保文件存在
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 参数设置 -->
+                    <div class="params-section">
+                        <h3>⚙️ 参数设置</h3>
+                        <div class="param-group">
+                            <label for="maxLoops">
+                                <span>最大迭代轮数</span>
+                                <span class="param-value" id="maxLoopsValue">5</span>
+                            </label>
+                            <input type="range" id="maxLoops" min="1" max="10" value="5">
+                        </div>
+                        <div class="param-group">
+                            <label for="threshold">
+                                <span>验证阈值</span>
+                                <span class="param-value" id="thresholdValue">0.75</span>
+                            </label>
+                            <input type="range" id="threshold" min="0.5" max="0.95" step="0.05" value="0.75">
+                        </div>
+                    </div>
+
+                    <button class="start-btn" id="startBtn" disabled>
+                        <span class="btn-icon">🚀</span>
+                        <span id="startBtnText">开始复现</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 进度显示区域 -->
+            <section class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-card">
+                    <h2>🔄 处理中...</h2>
+                    
+                    <!-- 进度条 -->
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">0%</div>
+                    </div>
+
+                    <!-- 当前步骤 -->
+                    <div class="current-step" id="currentStep">准备中...</div>
+
+                    <!-- 智能体流程指示器 -->
+                    <div class="agent-flow">
+                        <div class="agent-node" data-agent="1">
+                            <div class="agent-circle">A1</div>
+                            <div class="agent-label">代码生成</div>
+                        </div>
+                        <div class="agent-arrow">→</div>
+                        <div class="agent-node" data-agent="2">
+                            <div class="agent-circle">A2</div>
+                            <div class="agent-label">视觉评判</div>
+                        </div>
+                        <div class="agent-arrow">→</div>
+                        <div class="agent-node" data-agent="3">
+                            <div class="agent-circle">A3</div>
+                            <div class="agent-label">代码评估</div>
+                        </div>
+                        <div class="agent-arrow">→</div>
+                        <div class="agent-node" data-agent="4">
+                            <div class="agent-circle">A4</div>
+                            <div class="agent-label">反馈优化</div>
+                        </div>
+                        <div class="agent-arrow">→</div>
+                        <div class="agent-node validator">
+                            <div class="agent-circle">✓</div>
+                            <div class="agent-label">验证器</div>
+                        </div>
+                    </div>
+
+                    <!-- 日志输出 -->
+                    <div class="log-container">
+                        <h3>📋 执行日志</h3>
+                        <div class="log-output" id="logOutput"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 结果展示区域 -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="result-card">
+                    <div class="result-header">
+                        <h2>✨ 复现结果</h2>
+                        <div class="result-badge" id="resultBadge">成功</div>
+                    </div>
+
+                    <!-- 对比图 -->
+                    <div class="comparison-container">
+                        <div class="image-panel">
+                            <h3>原始图表</h3>
+                            <div class="image-wrapper">
+                                <img id="originalImage" src="" alt="原图">
+                            </div>
+                        </div>
+                        <div class="image-panel">
+                            <h3>复现图表</h3>
+                            <div class="image-wrapper">
+                                <img id="generatedImage" src="" alt="生成图">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 结果信息 -->
+                    <div class="result-info">
+                        <div class="info-item">
+                            <span class="info-label">验证状态:</span>
+                            <span class="info-value" id="validationStatus">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">相似度评分:</span>
+                            <span class="info-value" id="similarityScore">-</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">摘要:</span>
+                            <span class="info-value" id="summaryText">-</span>
+                        </div>
+                    </div>
+
+                    <!-- 代码查看 -->
+                    <div class="code-section">
+                        <div class="code-header">
+                            <h3>💻 生成的 ECharts 代码</h3>
+                            <button class="copy-btn" id="copyCodeBtn">📋 复制代码</button>
+                        </div>
+                        <pre class="code-block" id="codeBlock"><code id="codeContent"></code></pre>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="action-buttons">
+                        <button class="action-btn primary" id="downloadCodeBtn">
+                            ⬇️ 下载代码
+                        </button>
+                        <button class="action-btn secondary" id="newTaskBtn">
+                            🔄 新建任务
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <p>基于 DashScope API + Playwright | 多智能体协作框架</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

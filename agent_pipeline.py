@@ -38,11 +38,11 @@ def run_full_pipeline(
         print(f"\n{'='*20} 第 {loop + 1}/{max_loops} 轮 {'='*20}")
 
         if loop == 0:
-            print("[Agent1] 代码生成（VLM）…")
+            print("[Agent1] 代码生成(VLM)…")
             code = agent1_generate_code(input_chart_image)
         else:
             print("[迭代] 在上一轮 Agent4 输出上继续优化…")
-
+        
         Path(code_path).write_text(code, encoding="utf-8")
         print(f"[渲染] 生成预览 HTML / 截图 → {gen_png}")
         png = render_echarts_js_to_png(code, gen_png, html_path)
@@ -53,31 +53,31 @@ def run_full_pipeline(
             print("[错误]", msg)
             last_summary = msg
             return False, code_path, None, last_summary
-
-        print("[Agent2] 视觉评判（双图 VLM）…")
+        
+        print("[Agent2] 视觉评判(双图 VLM)…")
         chart_report = agent2_chart_evaluation_report(input_chart_image, png)
         Path(os.path.join(out_dir, f"report_agent2_round{loop+1}.txt")).write_text(
             chart_report, encoding="utf-8"
         )
-
-        print("[Agent3] 代码评判（LLM）…")
+        
+        print("[Agent3] 代码评判(LLM)…")
         code_report = agent3_code_evaluation_report(code, chart_report)
         Path(os.path.join(out_dir, f"report_agent3_round{loop+1}.txt")).write_text(
             code_report, encoding="utf-8"
         )
-
-        print("[Agent4] 反馈优化修订（LLM）…")
+        
+        print("[Agent4] 反馈优化修订(LLM)…")
         code_new = agent4_feedback_optimize_code(code, code_report, chart_report)
         Path(os.path.join(out_dir, f"current_echarts_after_agent4_r{loop+1}.js")).write_text(
             code_new, encoding="utf-8"
         )
-
+        
         print("[渲染] Agent4 输出再截图…")
         png_final = render_echarts_js_to_png(code_new, gen_png, html_path)
         if not png_final:
             last_summary = "Agent4 后截图失败"
             return False, code_path, None, last_summary
-
+        
         print("[多维验证器] 对比原图与复现图…")
         ok, score, last_summary = multidimensional_validate(
             input_chart_image, png_final, threshold=threshold
