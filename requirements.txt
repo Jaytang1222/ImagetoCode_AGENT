@@ -1,0 +1,4 @@
+dashscope>=1.14.0
+playwright>=1.40.0
+flask>=3.0.0
+flask-cors>=4.0.0

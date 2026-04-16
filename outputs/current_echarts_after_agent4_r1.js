@@ -1,0 +1,223 @@
+// 获取 DOM 容器
+var chartDom = document.getElementById('main');
+var myChart = echarts.init(chartDom);
+var option;
+
+// 辅助函数：生成正态分布的随机数
+function randomNormal(mean, stdDev) {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// 辅助函数：生成散点数据
+// count: 数量, centerX/Y: 中心点, spreadX/Y: 扩散程度
+function generateScatterData(count, centerX, centerY, spreadX, spreadY) {
+    var data = [];
+    for (var i = 0; i < count; i++) {
+        var x = randomNormal(centerX, spreadX);
+        var y = randomNormal(centerY, spreadY);
+        // 限制一下范围，防止太离谱，虽然 ECharts 会自动处理
+        data.push([parseFloat(x.toFixed(2)), parseFloat(y.toFixed(2))]);
+    }
+    // 数据校验：确保无 NaN
+    console.assert(data.every(p => !isNaN(p[0]) && !isNaN(p[1])), 'generateScatterData produced NaN values');
+    return data;
+}
+
+// 颜色常量集中管理
+const COLORS = {
+    CD: '#81D4FA',
+    BD: '#006064',
+    AD: '#8BC34A',
+    CF: '#2196F3',
+    BF: '#9E9E9E',
+    AF: '#FFCC80'
+};
+
+// 系列配置：解耦数据参数与样式
+const SERIES_CONFIG = [
+    { name: 'CD', count: 35, center: [-15, 1.5], spread: [10, 1.5] },
+    { name: 'BD', count: 80, center: [2, 1.5], spread: [2, 1.5] },
+    { name: 'AD', count: 146, center: [25, 3], spread: [20, 2.5] },
+    { name: 'CF', count: 215, center: [-15, -2], spread: [10, 1.5] },
+    { name: 'BF', count: 77, center: [2, -2.5], spread: [2, 1.5] },
+    { name: 'AF', count: 74, center: [15, -1], spread: [15, 1.5] }
+];
+
+// 动态生成数据
+const dataMap = {};
+SERIES_CONFIG.forEach(cfg => {
+    dataMap[cfg.name] = generateScatterData(cfg.count, ...cfg.center, ...cfg.spread);
+});
+
+// 动态生成 series 配置
+const series = SERIES_CONFIG.map(cfg => ({
+    name: cfg.name,
+    type: 'scatter',
+    symbolSize: 10,
+    itemStyle: { color: COLORS[cfg.name], opacity: cfg.name === 'AD' ? 0.7 : cfg.name === 'CD' ? 0.8 : 0.9 },
+    data: dataMap[cfg.name]
+}));
+
+// X 轴刻度映射（严格保真：-50(C), 0(B), 50, 100(A)）
+const xAxisFormatter = function(val) {
+    const map = { -50: '(C)', 0: '(B)', 50: '', 100: '(A)' };
+    return val + (map[val] || '');
+};
+
+// Y 轴刻度映射（严格保真：-8(F), 0(E), 10(D)）
+const yAxisFormatter = function(val) {
+    const map = { -8: '(F)', 0: '(E)', 10: '(D)' };
+    return val + (map[val] || '');
+};
+
+option = {
+    backgroundColor: '#fff',
+    title: {
+        text: '散点图',
+        left: 'center',
+        top: 10,
+        textStyle: {
+            fontSize: 24,
+            fontFamily: 'KaiTi'
+        }
+    },
+    graphic: [
+        {
+            type: 'rect',
+            left: 0,
+            top: 0,
+            shape: { width: '100%', height: 40 },
+            style: { fill: '#00BCD4' }
+        },
+        // 绘制右下角的统计表格（动态计数，与 dataMap 同步）
+        {
+            type: 'group',
+            right: 60,
+            bottom: 60,
+            children: [
+                // 表格背景
+                {
+                    type: 'rect',
+                    shape: { width: 220, height: 140, r: 4 },
+                    style: { fill: '#f5f5f5', stroke: '#ccc', lineWidth: 1 }
+                },
+                // 表头背景
+                {
+                    type: 'rect',
+                    shape: { width: 220, height: 30, r: 4 },
+                    style: { fill: '#9e9e9e' }
+                },
+                // 表头文字
+                {
+                    type: 'text',
+                    style: {
+                        text: 'Count & χ² Test',
+                        fill: '#fff',
+                        font: 'bold 14px sans-serif',
+                        x: 110, y: 15,
+                        textAlign: 'center', textVerticalAlign: 'middle'
+                    }
+                },
+                // 第一行数据 (CD, BD, AD)
+                { type: 'text', style: { text: '● ' + dataMap.CD.length, fill: COLORS.CD, font: '14px sans-serif', x: 20, y: 50, textAlign: 'left' } },
+                { type: 'text', style: { text: '● ' + dataMap.BD.length, fill: COLORS.BD, font: '14px sans-serif', x: 80, y: 50, textAlign: 'left' } },
+                { type: 'text', style: { text: '● ' + dataMap.AD.length, fill: COLORS.AD, font: '14px sans-serif', x: 140, y: 50, textAlign: 'left' } },
+                
+                // 第二行数据 (CF, BF, AF)
+                { type: 'text', style: { text: '● ' + dataMap.CF.length, fill: COLORS.CF, font: '14px sans-serif', x: 20, y: 80, textAlign: 'left' } },
+                { type: 'text', style: { text: '● ' + dataMap.BF.length, fill: COLORS.BF, font: '14px sans-serif', x: 80, y: 80, textAlign: 'left' } },
+                { type: 'text', style: { text: '● ' + dataMap.AF.length, fill: COLORS.AF, font: '14px sans-serif', x: 140, y: 80, textAlign: 'left' } },
+
+                // 底部统计值
+                { type: 'text', style: { text: 'χ² = 508.458', fill: '#333', font: '12px sans-serif', x: 20, y: 115, textAlign: 'left' } },
+                { type: 'text', style: { text: 'P < 0.01', fill: '#333', font: '12px sans-serif', x: 150, y: 115, textAlign: 'left' } },
+                
+                // 水印
+                {
+                    type: 'text',
+                    right: 10,
+                    bottom: 10,
+                    style: {
+                        text: '博硕科研绘图',
+                        fill: '#ddd',
+                        font: '16px sans-serif',
+                        opacity: 0.8
+                    }
+                }
+            ]
+        }
+    ],
+    tooltip: {
+        trigger: 'item',
+        formatter: function (params) {
+            return params.seriesName + ': [' + params.data[0] + ', ' + params.data[1] + ']';
+        }
+    },
+    legend: {
+        data: ['CD', 'BD', 'AD', 'CF', 'BF', 'AF'],
+        left: '5%',
+        top: '5%',
+        orient: 'vertical',
+        itemWidth: 12,
+        itemHeight: 12,
+        textStyle: { fontSize: 13 }
+    },
+    grid: {
+        left: '10%',
+        right: '15%',
+        bottom: '15%',
+        top: '15%',
+        containLabel: true
+    },
+    xAxis: {
+        type: 'value',
+        name: 'Centroid offset (mm)',
+        nameLocation: 'middle',
+        nameGap: 30,
+        min: -50,
+        max: 100,
+        interval: 50,
+        splitLine: { show: false },
+        axisLine: { show: true, lineStyle: { color: '#333' } },
+        axisTick: { inside: false },
+        axisLabel: {
+            color: '#333',
+            formatter: xAxisFormatter
+        }
+    },
+    yAxis: {
+        type: 'value',
+        name: 'Edge height difference (mm)',
+        nameLocation: 'middle',
+        nameGap: 50,
+        min: -8,
+        max: 10,
+        interval: 6,
+        splitLine: { show: false },
+        axisLine: { show: true, lineStyle: { color: '#333' } },
+        axisTick: { inside: false },
+        axisLabel: {
+            color: '#333',
+            formatter: yAxisFormatter
+        }
+    },
+    series: series,
+    markLine: {
+        silent: true,
+        symbol: 'none',
+        lineStyle: {
+            color: '#f44336',
+            type: 'dashed',
+            width: 0.5
+        },
+        data: [
+            { xAxis: 0 },
+            { yAxis: 0 }
+        ]
+    }
+};
+
+myChart.setOption(option);

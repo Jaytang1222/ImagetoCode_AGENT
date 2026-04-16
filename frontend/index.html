@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多智能体图表复现系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .upload-section {
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .params-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .param-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .param-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .param-group input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .param-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status-section {
+            display: none;
+        }
+
+        .status-section.active {
+            display: block;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-running {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-failed, .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .agent-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .agent-card {
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #ddd;
+            transition: all 0.3s;
+        }
+
+        .agent-card.active {
+            border-left-color: #667eea;
+            background: #f0f2ff;
+            animation: pulse 2s infinite;
+        }
+
+        .agent-card.completed {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .agent-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .agent-desc {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin: 15px 0;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .task-list {
+            margin-top: 20px;
+        }
+
+        .task-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .task-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .task-item.active {
+            background: #f0f2ff;
+            border-left: 4px solid #667eea;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .code-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 多智能体图表复现系统</h1>
+            <p>基于 Agent1→2→3→4 流水线的智能图表生成与优化</p>
+        </header>
+
+        <!-- 上传区域 -->
+        <div class="card upload-section">
+            <h2>📤 上传参考图表</h2>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📊</div>
+                <p>拖拽图片到此处，或点击选择文件</p>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">支持 PNG、JPG 格式</p>
+                <input type="file" id="fileInput" class="file-input" accept=".png,.jpg,.jpeg">
+            </div>
+            
+            <div class="params-section">
+                <div class="param-group">
+                    <label for="maxLoops">最大迭代轮数</label>
+                    <input type="number" id="maxLoops" value="5" min="1" max="10">
+                </div>
+                <div class="param-group">
+                    <label for="threshold">验证阈值 (0-1)</label>
+                    <input type="number" id="threshold" value="0.75" min="0" max="1" step="0.05">
+                </div>
+            </div>
+
+            <button class="btn" id="startBtn" onclick="startTask()">🚀 开始任务</button>
+        </div>
+
+        <!-- 状态显示区域 -->
+        <div class="card status-section" id="statusSection">
+            <h2>⚙️ 任务状态</h2>
+            
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+                </div>
+            </div>
+
+            <div class="status-message" id="statusMessage">等待开始...</div>
+
+            <div class="agent-status">
+                <div class="agent-card" id="agent1">
+                    <div class="agent-name">Agent 1</div>
+                    <div class="agent-desc">代码生成 (VLM)</div>
+                </div>
+                <div class="agent-card" id="agent2">
+                    <div class="agent-name">Agent 2</div>
+                    <div class="agent-desc">视觉评判</div>
+                </div>
+                <div class="agent-card" id="agent3">
+                    <div class="agent-name">Agent 3</div>
+                    <div class="agent-desc">代码评估</div>
+                </div>
+                <div class="agent-card" id="agent4">
+                    <div class="agent-name">Agent 4</div>
+                    <div class="agent-desc">反馈修订</div>
+                </div>
+                <div class="agent-card" id="validator">
+                    <div class="agent-name">验证器</div>
+                    <div class="agent-desc">多维验证</div>
+                </div>
+            </div>
+
+            <div class="result-section" id="resultSection">
+                <h3>📈 生成结果</h3>
+                <img id="resultImage" class="preview-image" src="" alt="生成的图表">
+                
+                <h4>生成的代码预览：</h4>
+                <div class="code-preview" id="codePreview"></div>
+                
+                <div class="download-buttons">
+                    <button class="btn" onclick="downloadCode()">💾 下载代码</button>
+                    <button class="btn" onclick="downloadImage()">🖼️ 下载图片</button>
+                    <button class="btn" onclick="openPreview()">👁️ 在线预览</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="card">
+            <h2>📂 输出目录列表</h2>
+            <div class="task-list" id="taskList">
+                <p style="text-align: center; color: #666;">暂无任务记录</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预览模态框 -->
+    <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; border-radius: 15px; width: 90%; height: 90%; max-width: 1400px; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <div style="padding: 20px; border-bottom: 2px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: #333;">📊 图表预览</h3>
+                <button onclick="closePreviewModal()" style="background: #ff4757; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 1em; transition: all 0.3s;" onmouseover="this.style.background='#ff6b81'" onmouseout="this.style.background='#ff4757'">✖ 关闭</button>
+            </div>
+            <div style="flex: 1; padding: 20px; overflow: hidden;">
+                <iframe id="previewIframe" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #f8f9fa;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTaskId = null;
+        let pollingInterval = null;
+        let selectedFile = null;
+
+        // 文件上传处理
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <p><strong>${file.name}</strong></p>
+                <p style="font-size: 0.9em; color: #666;">${(file.size / 1024).toFixed(2)} KB</p>
+            `;
+        }
+
+        // 开始任务
+        async function startTask() {
+            if (!selectedFile) {
+                alert('请先选择要上传的图片！');
+                return;
+            }
+
+            const maxLoops = document.getElementById('maxLoops').value;
+            const threshold = document.getElementById('threshold').value;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('max_loops', maxLoops);
+            formData.append('threshold', threshold);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentTaskId = data.task_id;
+                    document.getElementById('statusSection').classList.add('active');
+                    startPolling();
+                } else {
+                    alert('上传失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('网络错误: ' + error.message);
+            }
+        }
+
+        // 轮询任务状态
+        function startPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+
+            pollingInterval = setInterval(async () => {
+                await updateTaskStatus();
+            }, 2000);
+        }
+
+        // 更新任务状态
+        async function updateTaskStatus() {
+            if (!currentTaskId) return;
+
+            try {
+                const response = await fetch(`/api/tasks/${currentTaskId}`);
+                const task = await response.json();
+
+                // 更新进度条
+                const progressFill = document.getElementById('progressFill');
+                progressFill.style.width = `${task.progress}%`;
+                progressFill.textContent = `${task.progress}%`;
+
+                // 更新状态消息
+                const statusMessage = document.getElementById('statusMessage');
+                statusMessage.textContent = task.message;
+                statusMessage.className = 'status-message status-' + task.status;
+
+                // 更新 Agent 状态
+                updateAgentStatus(task.message);
+
+                // 如果任务完成或失败，停止轮询
+                if (task.status === 'completed' || task.status === 'failed' || task.status === 'error') {
+                    clearInterval(pollingInterval);
+                    
+                    if (task.status === 'completed') {
+                        showResults(task);
+                    }
+                    
+                    loadTaskList();
+                }
+            } catch (error) {
+                console.error('获取任务状态失败:', error);
+            }
+        }
+
+        // 更新 Agent 状态显示
+        function updateAgentStatus(message) {
+            // 重置所有 agent 卡片
+            document.querySelectorAll('.agent-card').forEach(card => {
+                card.classList.remove('active', 'completed');
+            });
+
+            // 根据消息内容高亮对应的 agent
+            if (message.includes('Agent1') || message.includes('代码生成')) {
+                document.getElementById('agent1').classList.add('active');
+            } else if (message.includes('Agent2') || message.includes('视觉评判')) {
+                document.getElementById('agent1').classList.add('completed');
+                document.getElementById('agent2').classList.add('active');
+            } else if (message.includes('Agent3') || message.includes('代码评判')) {
+                document.getElementById('agent1').classList.add('completed');
+                document.getElementById('agent2').classList.add('completed');
+                document.getElementById('agent3').classList.add('active');
+            } else if (message.includes('Agent4') || message.includes('反馈优化')) {
+                document.getElementById('agent1').classList.add('completed');
+                document.getElementById('agent2').classList.add('completed');
+                document.getElementById('agent3').classList.add('completed');
+                document.getElementById('agent4').classList.add('active');
+            } else if (message.includes('验证器') || message.includes('验证')) {
+                document.getElementById('agent1').classList.add('completed');
+                document.getElementById('agent2').classList.add('completed');
+                document.getElementById('agent3').classList.add('completed');
+                document.getElementById('agent4').classList.add('completed');
+                document.getElementById('validator').classList.add('active');
+            } else if (message.includes('通过') || message.includes('完成')) {
+                document.querySelectorAll('.agent-card').forEach(card => {
+                    card.classList.add('completed');
+                });
+            }
+        }
+
+        // 显示结果
+        function showResults(task) {
+            const resultSection = document.getElementById('resultSection');
+            resultSection.classList.add('active');
+
+            // 加载图片
+            const resultImage = document.getElementById('resultImage');
+            resultImage.src = `/api/download/image/${currentTaskId}`;
+
+            // 加载代码预览
+            fetch(`/api/download/code/${currentTaskId}`)
+                .then(response => response.text())
+                .then(code => {
+                    const codePreview = document.getElementById('codePreview');
+                    codePreview.textContent = code.substring(0, 500) + (code.length > 500 ? '...' : '');
+                })
+                .catch(error => console.error('加载代码失败:', error));
+        }
+
+        // 下载代码
+        function downloadCode() {
+            if (currentTaskId) {
+                window.open(`/api/download/code/${currentTaskId}`, '_blank');
+            }
+        }
+
+        // 下载图片
+        function downloadImage() {
+            if (currentTaskId) {
+                window.open(`/api/download/image/${currentTaskId}`, '_blank');
+            }
+        }
+
+        // 打开预览
+        function openPreview() {
+            if (currentTaskId) {
+                window.open(`/api/preview/${currentTaskId}`, '_blank');
+            }
+        }
+
+        // 加载任务列表（从 outputs 目录）
+        async function loadTaskList() {
+            try {
+                const response = await fetch('/api/outputs');
+                const outputs = await response.json();
+
+                const taskList = document.getElementById('taskList');
+                
+                if (!outputs || outputs.length === 0) {
+                    taskList.innerHTML = '<p style="text-align: center; color: #666;">暂无任务记录</p>';
+                    return;
+                }
+
+                taskList.innerHTML = outputs.map(output => {
+                    // 从目录名提取时间戳
+                    const dirName = output.name;
+                    const formattedTime = formatDirectoryTime(dirName);
+                    const sizeMB = (output.size / 1024 / 1024).toFixed(2);
+                    
+                    return `
+                    <div class="task-item" onclick="viewOutputTask('${dirName}')">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>📁 ${dirName}</strong>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                    🕒 ${formattedTime}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 0.85em; color: #666;">
+                                    💾 ${sizeMB} MB
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <button class="btn" style="padding: 5px 15px; font-size: 0.85em;" 
+                                            onclick="event.stopPropagation(); viewOutputDetails('${dirName}')">
+                                        👁️ 查看
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('加载任务列表失败:', error);
+            }
+        }
+        
+        // 格式化目录时间
+        function formatDirectoryTime(dirName) {
+            // 假设目录名格式为: YYYYMMDD_HHMMSS
+            const match = dirName.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+            if (match) {
+                const [, year, month, day, hour, minute, second] = match;
+                return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+            }
+            return dirName;
+        }
+        
+        // 查看任务详情
+        function viewOutputDetails(dirName) {
+            const modal = document.getElementById('previewModal');
+            const iframe = document.getElementById('previewIframe');
+            
+            // 设置 iframe 的 src 为 preview.html（使用后端 API）
+            iframe.src = `/api/preview/dir/${encodeURIComponent(dirName)}`;
+            
+            // 显示模态框
+            modal.style.display = 'flex';
+        }
+        
+        // 关闭预览模态框
+        function closePreviewModal() {
+            const modal = document.getElementById('previewModal');
+            const iframe = document.getElementById('previewIframe');
+            
+            // 隐藏模态框
+            modal.style.display = 'none';
+            
+            // 清空 iframe src 以释放资源
+            setTimeout(() => {
+                iframe.src = '';
+            }, 300);
+        }
+        
+        // 点击模态框背景关闭
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('previewModal');
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closePreviewModal();
+                    }
+                });
+            }
+        });
+        
+        // 查看输出任务
+        function viewOutputTask(dirName) {
+            console.log('查看任务:', dirName);
+            // 这里可以添加更多逻辑，比如加载该任务的详细信息
+        }
+
+        // 选择任务
+        function selectTask(taskId) {
+            currentTaskId = taskId;
+            document.getElementById('statusSection').classList.add('active');
+            updateTaskStatus();
+            
+            // 如果是已完成的任务，显示结果
+            fetch(`/api/tasks/${taskId}`)
+                .then(response => response.json())
+                .then(task => {
+                    if (task.status === 'completed') {
+                        showResults(task);
+                    }
+                });
+        }
+
+        // 获取状态文本
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': '等待中',
+                'running': '运行中',
+                'completed': '已完成',
+                'failed': '失败',
+                'error': '错误'
+            };
+            return statusMap[status] || status;
+        }
+
+        // 页面加载时获取任务列表
+        window.addEventListener('load', () => {
+            loadTaskList();
+        });
+    </script>
+</body>
+</html>

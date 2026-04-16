@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# 上传的文件
+uploads/*
+!uploads/.gitkeep
+
+# 输出文件（可选，如果不想上传历史记录）
+# outputs/*
+# !outputs/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# API 密钥等敏感信息
+我的API.txt
+
+# 日志文件
+*.log

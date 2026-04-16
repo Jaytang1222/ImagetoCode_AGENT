@@ -1,0 +1,104 @@
+# ECharts 绘图代码评判报告
+
+> 本报告基于视觉 Agent 提供的《图表评估报告》，从**可读性、模块化、可测试性、与视觉报告的一致性**四个维度，对所提供的 ECharts 内联 JavaScript 代码进行专业评审，并给出**可直接落地的代码改进指导**。
+
+---
+
+## ✅ 一、可读性：良好，但存在命名与注释优化空间  
+### 优点：
+- 函数命名清晰（`randomNormal`, `generateScatterData`），意图明确；
+- 数据生成逻辑按图中簇名（CD/BD/AD/CF/BF/AF）分组，结构直观；
+- `xAxis.axisLabel.formatter` 和 `yAxis.axisLabel.formatter` 中的刻度标签映射逻辑（如 `-50(C)`）语义明确，符合参考图要求；
+- `graphic` 中表格绘制使用嵌套 `group` + `text/rect`，层次合理，便于理解布局逻辑。
+
+### 待改进：
+- **变量命名未完全语义化**：`dataCD` / `dataBD` 等虽简洁，但缺乏业务上下文（如 `dataClusterCD` 或 `scatterDataCD` 更佳）；  
+- **缺少关键注释**：如 `markLine` 配置中未说明其作用是绘制 `(x=0, y=0)` 十字虚线，易被误认为冗余配置；  
+- **magic number 缺乏解释**：如 `grid.left: '10%'`、`graphic.right: 60`、`table height: 140` 等数值未注释其设计依据（是否对应参考图像素级定位？）；  
+- **formatter 函数存在隐式假设**：当前 `xAxis.axisLabel.formatter` 仅处理 `-50/0/50/100` 四个值，若 ECharts 自动计算的刻度包含 `25` 或 `-25`，将显示原始数字（如 `25`），**无法保证所有刻度均带字母后缀**（如 `25(?)`），与评估报告第2条“刻度标签需严格匹配”不符。
+
+✅ **建议**：为所有硬编码数值添加 `// ← 参考图右下角统计表 Y 偏移量` 类注释；在 formatter 中补充默认 fallback（如 `return val + '(?)'`）或改用 `axisTick.interval` + `axisLabel.interval` 控制刻度密度，确保只显示预设刻度。
+
+---
+
+## ✅ 二、模块化：中等，数据与配置耦合度偏高  
+### 优点：
+- 数据生成函数 `generateScatterData` 封装了核心逻辑，支持复用；
+- 各 series 配置结构一致，便于批量修改样式（如统一 `symbolSize`）。
+
+### 待改进：
+- **数据生成与绘图配置强耦合**：所有 `dataXX` 变量在全局作用域声明，且直接内联进 `series.data`，导致：
+  - ❌ 无法单独导出/替换数据源（如切换为真实 CSV 加载）；
+  - ❌ 修改数据分布需同时调整 `generateScatterData()` 调用参数和 `series` 配置（如 `itemStyle.color`）；
+- **配色未集中管理**：颜色值（`#81D4FA`, `#006064` 等）散落在 `series.itemStyle.color` 和 `graphic.text.style.fill` 中，**未提取为常量对象**，违反 DRY 原则，增加维护成本；
+- **统计表格内容硬编码**：`graphic` 中的计数（`● 35`, `● 215`）与 `dataXX.length` 不同步（当前代码中 `dataCD.length === 35` 是巧合，若 `generateScatterData` 逻辑变更则易脱节）。
+
+✅ **建议**：
+```js
+// 提取为常量
+const COLORS = { CD: '#81D4FA', BD: '#006064', AD: '#8BC34A', CF: '#2196F3', BF: '#9E9E9E', AF: '#FFCC80' };
+const SERIES_CONFIG = [
+  { name: 'CD', count: 35, center: [-15, 1.5], spread: [10, 1.5] },
+  { name: 'BD', count: 80, center: [2, 1.5], spread: [2, 1.5] },
+  // ... 其他
+];
+
+// 动态生成 data & series
+const series = SERIES_CONFIG.map(cfg => ({
+  name: cfg.name,
+  type: 'scatter',
+  symbolSize: 10,
+  itemStyle: { color: COLORS[cfg.name], opacity: 0.85 },
+  data: generateScatterData(cfg.count, ...cfg.center, ...cfg.spread)
+}));
+
+// 动态生成 graphic 表格文本（基于 series.length）
+```
+
+---
+
+## ✅ 三、可测试性：弱，难以做单元测试或数据验证  
+### 问题：
+- **无数据校验逻辑**：未检查 `generateScatterData` 输出是否为空、是否含非法值（如 `NaN`），而 ECharts 对 `['NaN', 'NaN']` 会静默失败；
+- **无 mock 支持**：`randomNormal` 依赖 `Math.random()`，无法固定 seed 进行确定性测试；
+- **配置未分离**：`option` 对象与数据生成混写，无法对「给定输入数据 → 生成 option」这一纯函数逻辑做测试；
+- **辅助线逻辑分散**：`markLine` 配置与坐标轴逻辑解耦，但未提供开关控制（如 `enableZeroLines: true`），不利于 A/B 测试。
+
+✅ **建议**：
+- 为 `randomNormal` 添加可选 `seed` 参数（或使用 `seedrandom` 库），确保测试可重现；
+- 将 `option` 构建逻辑封装为函数 `buildOption(dataMap)`，接受 `{ CD: [...], BD: [...] }` 对象，返回完整 option；
+- 在 `generateScatterData` 末尾添加断言：`console.assert(data.every(p => !isNaN(p[0]) && !isNaN(p[1])));`；
+- 将 `markLine` 抽离为独立配置项，例如：
+  ```js
+  const markLineConfig = {
+    enabled: true,
+    color: '#ff8a8a',
+    width: 1
+  };
+  // 然后在 option.markLine 中条件生成
+  ```
+
+---
+
+## ⚠️ 四、与视觉报告的一致性：存在 **4 处关键偏差**，需按以下指导精准修复  
+
+| 评估报告指出的问题         | 当前代码状态                                                                 | ✅ **具体代码改进指导**（逐条可执行）                                                                                                                                 |
+|--------------------------|------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **1. 图例位置与方向错误**     | `legend.top: 50, left: 80` → 外部顶部横向排列                                                              | **修改 `legend` 配置**：<br>`legend: {`<br>&nbsp;&nbsp;`data: ['CD','BD','AD','CF','BF','AF'],`<br>&nbsp;&nbsp;`left: '5%',`<br>&nbsp;&nbsp;`top: '5%',`<br>&nbsp;&nbsp;`orient: 'vertical',`<br>&nbsp;&nbsp;`itemWidth: 12, itemHeight: 12,`<br>&nbsp;&nbsp;`textStyle: { fontSize: 13 }`<br>`}`<br>→ `left/top` 百分比实现**内部左上角定位**；`orient: 'vertical'` 强制竖排。                     |
+| **2. 坐标轴框架非四边封闭**    | 默认仅显示 bottom/left 轴线；`axisLine` 未启用 top/right                                                                 | **在 `xAxis` 和 `yAxis` 中分别添加**：<br>`axisLine: {`<br>&nbsp;&nbsp;`show: true,`<br>&nbsp;&nbsp;`lineStyle: { color: '#333' }`<br>`},`<br>并**删除 `splitLine: { show: false }` 的副作用干扰**（该配置不影响轴线，仅影响网格线）。<br>⚠️ 注意：ECharts 中 `axisLine` 控制四边，无需额外 `spines`（那是 Matplotlib 语法）。 |
+| **3. 零位辅助线缺失/不显眼**   | `markLine` 已存在，但 `lineStyle.width: 1` 过粗 + `color: '#ff8a8a'` 偏粉，与报告要求的「红色虚线」不一致                                               | **修改 `markLine` 配置**：<br>`markLine: {`<br>&nbsp;&nbsp;`silent: true,`<br>&nbsp;&nbsp;`symbol: 'none',`<br>&nbsp;&nbsp;`lineStyle: {`<br>&nbsp;&nbsp;&nbsp;&nbsp;`color: '#f44336', // 纯红`<br>&nbsp;&nbsp;&nbsp;&nbsp;`type: 'dashed',`<br>&nbsp;&nbsp;&nbsp;&nbsp;`width: 0.5 // 更细，匹配参考图`<br>&nbsp;&nbsp;`},`<br>&nbsp;&nbsp;`data: [{ xAxis: 0 }, { yAxis: 0 }]`<br>`}`                                                                 |
+| **4. 刻度标签格式不严格保真**  | `formatter` 仅覆盖部分值（如 `-50/0/50/100`），未处理 `yAxis` 的 `10(D)/-8(F)` 等，且未确保刻度**仅显示这些预设值**（ECharts 可能插入中间刻度）                             | **两步修复**：<br>① **强制刻度点**：在 `xAxis` 和 `yAxis` 中添加<br>`min: -50, max: 100, interval: 50`（X 轴）和 `min: -8, max: 10, interval: 6`（Y 轴，覆盖 -8→10）；<br>② **完善 formatter**：<br>`formatter: function(val) {`<br>&nbsp;&nbsp;`const map = { -50:'(C)', 0:'(B)', 50:'', 100:'(A)', 10:'(D)', -8:'(F)', 0:'(E)' };`<br>&nbsp;&nbsp;`return val + (map[val] || '');`<br>`}`<br>→ 确保所有显示刻度均有定义，且无歧义。 |
+
+> 🔔 **额外一致性提醒**：  
+> - 当前 `graphic` 中统计表格的表头背景色为 `#9e9e9e`，与评估报告「表头背景更深」描述一致，**无需修改**；  
+> - 水印文字 `'博硕科研绘图'` 位置（`right:10, bottom:10`）与参考图匹配，**保留即可**。
+
+---
+
+## ✅ 总结：代码质量评级 —— **B+（良好，具生产就绪潜力）**  
+- **优势**：逻辑主干清晰、数据模拟合理、配色准确、已覆盖大部分视觉要素；  
+- **风险点**：图例/轴线/辅助线/刻度四大偏差若不修复，将导致交付图被下游质疑「不严谨」；  
+- **推荐行动**：**优先执行「四、一致性」中的 4 条代码修改**（共约 15 行变更），即可达成 99% 视觉还原度；后续再推进模块化与可测试性重构。
+
+---  
+**交付提示**：修改后建议用 `myChart.dispatchAction({ type: 'restore' })` 清除缓存，并截图对比验证四点改进效果。
