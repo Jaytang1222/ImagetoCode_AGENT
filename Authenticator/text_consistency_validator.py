@@ -76,8 +76,12 @@ def evaluate_text_consistency(
             "并确保本机已安装 Tesseract OCR 程序。"
         ) from exc
 
-    ref_blocks, ref_size = _extract_ocr_blocks(original_image_path, ocr_lang, pytesseract)
-    gen_blocks, gen_size = _extract_ocr_blocks(generated_image_path, ocr_lang, pytesseract)
+    ref_blocks_raw, ref_size = _extract_ocr_blocks(original_image_path, ocr_lang, pytesseract)
+    gen_blocks_raw, gen_size = _extract_ocr_blocks(generated_image_path, ocr_lang, pytesseract)
+
+    # OCR 后处理校正（修正 0/O、1/l/I 等常见错误）
+    ref_blocks = [_correct_ocr_block(block) for block in ref_blocks_raw]
+    gen_blocks = [_correct_ocr_block(block) for block in gen_blocks_raw]
 
     if not ref_blocks:
         # 参考图无文本时，视为文本一致性满分（避免误伤纯图表场景）。
@@ -105,14 +109,14 @@ def evaluate_text_consistency(
     for ref_idx, gen_idx, sim in matches:
         ref_block = ref_blocks[ref_idx]
         gen_block = gen_blocks[gen_idx]
-        bleu = _sentence_bleu(
+        # 使用自适应 BLEU（短文本用 BLEU-2，长文本用 BLEU-4）
+        adaptive_bleu = _adaptive_bleu(
             _tokenize_for_bleu(ref_block.text),
             _tokenize_for_bleu(gen_block.text),
-            max_n=max_bleu_n,
         )
         layout = _layout_similarity(ref_block, gen_block, ref_size, gen_size)
         weight = max(float(len(ref_block.text)), 1.0)
-        bleu_values.append(bleu)
+        bleu_values.append(adaptive_bleu)
         sim_values.append(sim)
         layout_values.append(layout)
         ref_weight_values.append(weight)
@@ -329,3 +333,88 @@ def _weighted_average(values: List[float], weights: List[float]) -> float:
 
 def _clamp01(v: float) -> float:
     return max(0.0, min(1.0, float(v)))
+
+
+def _correct_ocr_text(text: str) -> str:
+    """
+    校正 OCR 识别的常见错误
+    - 数字 0/O, 1/l/I 混淆
+    - 常见图表术语校正
+    """
+    # 图表术语常见错误映射
+    corrections = {
+        r'\bO\b': '0',      # 坐标轴刻度 0 误识别为 O
+        r'\bo\b': '0',      # 小写 o
+        r'\bl\b': '1',      # 小写 l
+        r'\bI\b': '1',      # 大写 I
+        r'\bi\b': '1',      # 小写 i（在数字上下文中）
+        r'\bO\.\b': '0.',   # 小数点前的 0
+        r'\bl\.\b': '1.',
+        r'（': '(',
+        r'）': ')',
+        r'％': '%',
+        r'°': '度',         # 角度符号转中文
+    }
+
+    # 应用正则替换
+    for wrong, correct in corrections.items():
+        text = re.sub(wrong, correct, text)
+
+    return text
+
+
+def _correct_ocr_block(block: OCRTextBlock) -> OCRTextBlock:
+    """
+    校正单个 OCR 文本块
+    """
+    corrected_text = _correct_ocr_text(block.text)
+    return OCRTextBlock(
+        text=corrected_text,
+        conf=block.conf,
+        left=block.left,
+        top=block.top,
+        width=block.width,
+        height=block.height,
+    )
+
+
+def _adaptive_bleu(reference_tokens: List[str], hypothesis_tokens: List[str]) -> float:
+    """
+    自适应 BLEU - 根据文本长度选择合适的 n-gram 级别
+    - 短文本（≤5 字符）：使用 BLEU-2（对短文本更友好）
+    - 中等文本（5-15 字符）：使用 BLEU-3
+    - 长文本（>15 字符）：使用 BLEU-4（原始级别）
+
+    解决短文本（如刻度标签）BLEU-4 过于严格的问题。
+    """
+    ref_len = len(reference_tokens)
+    if ref_len <= 5:
+        max_n = 2
+    elif ref_len <= 15:
+        max_n = 3
+    else:
+        max_n = 4
+    return _sentence_bleu(reference_tokens, hypothesis_tokens, max_n=max_n)
+
+
+def _semantic_text_similarity(a: str, b: str) -> float:
+    """
+    语义文本相似度 - 补充 BLEU 评估
+    使用编辑距离 + 关键词匹配评估语义相似度
+    适用于 OCR 有小误差但语义正确的情况。
+    """
+    # 基础编辑距离相似度
+    base_sim = SequenceMatcher(None, a, b).ratio()
+
+    # 提取数字和关键术语进行比较
+    numbers_a = set(re.findall(r'\d+\.?\d*', a))
+    numbers_b = set(re.findall(r'\d+\.?\d*', b))
+
+    if numbers_a or numbers_b:
+        num_overlap = len(numbers_a & numbers_b)
+        num_total = max(len(numbers_a | numbers_b), 1)
+        number_sim = num_overlap / num_total
+        # 数字匹配更重要（权重 60%）
+        return 0.4 * base_sim + 0.6 * number_sim
+
+    return base_sim

@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 from PIL import Image
@@ -25,6 +25,7 @@ class ColorConsistencyResult:
     block_match_score: float
     hsv_score: float
     hsv_distance: float
+    gradient_score: float  # 新增：渐变色检测分数
     grid_size: Tuple[int, int]
     bins_per_channel: int
     details: Dict[str, float]
@@ -37,9 +38,10 @@ def evaluate_color_consistency(
     resize_to: Tuple[int, int] = (512, 512),
     grid_size: Tuple[int, int] = (8, 8),
     bins_per_channel: int = 16,
-    global_hist_weight: float = 0.35,
-    block_match_weight: float = 0.45,
+    global_hist_weight: float = 0.30,
+    block_match_weight: float = 0.40,
     hsv_weight: float = 0.20,
+    gradient_weight: float = 0.10,  # 新增：渐变色检测权重
     hue_weight: float = 2.0,
     saturation_weight: float = 1.0,
     value_weight: float = 1.0,
@@ -47,7 +49,9 @@ def evaluate_color_consistency(
     """
     计算颜色一致性分数（0~1）。
     - 全局颜色分布：衡量总体色彩风格是否接近；
-    - 色块匹配：衡量局部区域（关键数据、背景、标注附近）颜色还原精度。
+    - 色块匹配：衡量局部区域（关键数据、背景、标注附近）颜色还原精度；
+    - HSV 距离：衡量色相、饱和度、亮度的综合差异；
+    - 渐变色检测：衡量渐变色区域的还原精度（新增）。
     """
     if bins_per_channel <= 1:
         raise ValueError("bins_per_channel 必须大于 1")
@@ -67,10 +71,20 @@ def evaluate_color_consistency(
         value_weight=value_weight,
     )
 
-    weight_sum = max(global_hist_weight + block_match_weight + hsv_weight, 1e-8)
+    # 新增：渐变色检测
+    gradient_strength_orig, main_colors_orig = _gradient_color_detection(orig)
+    gradient_strength_gen, main_colors_gen = _gradient_color_detection(gen)
+    gradient_score = _gradient_similarity(main_colors_orig, main_colors_gen)
+
+    # 根据渐变强度自适应调整 HSV 权重（渐变色强时提升 HSV 权重）
+    adaptive_hsv_weight = hsv_weight * (1.0 + gradient_strength_orig * 0.5)
+
+    weight_sum = max(global_hist_weight + block_match_weight + adaptive_hsv_weight + gradient_weight, 1e-8)
     final_score = (
-        global_score * global_hist_weight + block_score * block_match_weight
-        + hsv_score * hsv_weight
+        global_score * global_hist_weight
+        + block_score * block_match_weight
+        + hsv_score * adaptive_hsv_weight
+        + gradient_score * gradient_weight
     ) / weight_sum
     final_score = _clamp01(final_score)
 
@@ -78,9 +92,13 @@ def evaluate_color_consistency(
         "global_hist_weight": float(global_hist_weight),
         "block_match_weight": float(block_match_weight),
         "hsv_weight": float(hsv_weight),
+        "adaptive_hsv_weight": float(adaptive_hsv_weight),
+        "gradient_weight": float(gradient_weight),
         "hue_weight": float(hue_weight),
         "saturation_weight": float(saturation_weight),
         "value_weight": float(value_weight),
+        "gradient_strength_orig": float(gradient_strength_orig),
+        "gradient_strength_gen": float(gradient_strength_gen),
     }
     return ColorConsistencyResult(
         score=final_score,
@@ -88,6 +106,7 @@ def evaluate_color_consistency(
         block_match_score=block_score,
         hsv_score=hsv_score,
         hsv_distance=hsv_distance,
+        gradient_score=gradient_score,
         grid_size=grid_size,
         bins_per_channel=bins_per_channel,
         details=details,
@@ -218,3 +237,69 @@ def _rgb_to_hsv01(arr: np.ndarray) -> np.ndarray:
 
 def _clamp01(v: float) -> float:
     return max(0.0, min(1.0, float(v)))
+
+
+def _gradient_color_detection(arr: np.ndarray) -> Tuple[float, List[Tuple[int, int, int]]]:
+    """
+    检测图像中的渐变色区域。
+
+    返回：渐变强度分数 + 主色列表
+    - 渐变强度：相邻像素颜色变化率
+    - 主色：使用 K-Means 聚类提取的主要颜色
+    """
+    # 计算相邻像素颜色变化率（梯度幅值）
+    dx = np.diff(arr.astype(np.float32), axis=1)
+    dy = np.diff(arr.astype(np.float32), axis=0)
+    gradient_magnitude = np.sqrt(np.mean(dx**2) + np.mean(dy**2))
+
+    # 归一化梯度强度到 [0, 1]
+    gradient_strength = _clamp01(gradient_magnitude / 50.0)  # 50 为经验阈值
+
+    # 提取主色（使用 K-Means 聚类）
+    try:
+        from sklearn.cluster import KMeans
+        pixels = arr.reshape(-1, 3)
+        # 采样加速（每 10 个像素取 1 个）
+        sample_step = max(1, len(pixels) // 1000)
+        sampled_pixels = pixels[::sample_step]
+        kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
+        kmeans.fit(sampled_pixels)
+        main_colors = kmeans.cluster_centers_.astype(int)
+        main_colors_list = [tuple(c) for c in main_colors]
+    except ImportError:
+        # 无 sklearn 时返回简单主色（平均值）
+        main_colors_list = [tuple(np.mean(arr, axis=(0, 1)).astype(int))]
+
+    return gradient_strength, main_colors_list
+
+
+def _gradient_similarity(
+    colors_a: List[Tuple[int, int, int]],
+    colors_b: List[Tuple[int, int, int]],
+) -> float:
+    """
+    计算两组主色的相似度。
+    使用最近邻匹配，返回平均颜色距离的倒数。
+    """
+    if not colors_a or not colors_b:
+        return 0.0
+
+    similarities = []
+    for color_a in colors_a:
+        # 找到 colors_b 中最近的颜色
+        min_distance = float('inf')
+        for color_b in colors_b:
+            # 欧氏距离
+            distance = np.sqrt(
+                (color_a[0] - color_b[0])**2 +
+                (color_a[1] - color_b[1])**2 +
+                (color_a[2] - color_b[2])**2
+            )
+            min_distance = min(min_distance, distance)
+
+        # 距离转相似度（最大距离 441.67 = sqrt(255^2 * 3)）
+        max_distance = 441.67
+        similarity = 1.0 - (min_distance / max_distance)
+        similarities.append(max(0.0, similarity))
+
+    return _clamp01(np.mean(similarities))

@@ -45,7 +45,7 @@ SYSTEM_AGENT2 = """你是严谨的图表视觉评测专家。
 def agent2_chart_evaluation_report(
     original_image_path: str,
     generated_image_path: str,
-    vlm_model: str = "qwen3.5-plus",
+    vlm_model: str = "qwen3.6-plus",
 ) -> str:
     messages = [
         {"role": "system", "content": SYSTEM_AGENT2},
