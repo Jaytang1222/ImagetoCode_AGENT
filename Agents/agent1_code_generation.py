@@ -34,7 +34,7 @@ SYSTEM_AGENT1 = """你是数据可视化与 Matplotlib 专家。
 8. 尽可能还原：颜色、线型、标记、图例位置、坐标轴刻度、标题等细节
 
 示例输出结构：
-```python
+```
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -73,6 +73,68 @@ plt.savefig(output_path, dpi=100, bbox_inches='tight')
 ```"""
 
 
+SYSTEM_AGENT1_ECHARTS = """你是 ECharts 数据可视化专家。
+用户会提供一张统计图表截图。你的任务是输出一段 JavaScript 代码，
+使用 ECharts 5.x 尽可能复现该图。
+
+硬性要求（必须遵守）：
+1. 只输出 option 配置对象，不要包裹 var option =
+2. 使用 div id="main"，尺寸由容器决定
+3. 使用全局 echarts 对象（已通过 CDN 引入）
+4. 如果图中有中文，确保 text 中正确书写
+5. 只输出 JavaScript 代码，使用 ```javascript 代码块包裹
+6. 尽可能还原：颜色、线型、标记、图例位置、坐标轴等细节
+
+示例输出结构：
+```
+{
+    title: {
+        text: '图表标题',
+        left: 'center',
+        textStyle: {
+            fontSize: 14,
+            fontWeight: 'bold'
+        }
+    },
+    tooltip: {
+        trigger: 'axis'
+    },
+    legend: {
+        data: ['系列 1', '系列 2'],
+        top: 10
+    },
+    xAxis: {
+        type: 'category',
+        data: ['周一', '周二', '周三', '周四', '周五'],
+        axisLabel: {
+            fontSize: 12
+        }
+    },
+    yAxis: {
+        type: 'value',
+        axisLabel: {
+            fontSize: 12
+        }
+    },
+    series: [
+        {
+            name: '系列 1',
+            type: 'bar',  // 或 line/scatter/pie 等
+            data: [120, 200, 150, 80, 70],
+            itemStyle: {
+                color: '#5470c6'
+            },
+            showSymbol: true,
+            lineStyle: {
+                width: 2,
+                type: 'solid'
+            }
+        }
+    ]
+}
+```"""
+
+
 @dataclass
 class Agent1Preset:
     """
@@ -108,23 +170,45 @@ class Agent1DispatchResult:
     code_report: Optional[str]
 
 
+def extract_javascript_code(raw: str) -> str:
+    """从模型回复中提取 JavaScript 代码块。"""
+    raw = raw.strip()
+    fence = re.search(
+        r"```(?:javascript|js)?\s*([\s\S]*?)```",
+        raw,
+        re.IGNORECASE,
+    )
+    if fence:
+        return fence.group(1).strip()
+    return raw
+
+
 def agent1_generate_code(
     input_chart_image_path: str,
+    output_format: str = "matplotlib",
     extra_feedback: Optional[str] = None,
-    vlm_model: str = "qwen3.5-plus",
+    vlm_model: str = "qwen3.6-plus",
 ) -> str:
     """
-    根据输入图表生成 Matplotlib Python 代码。
-    extra_feedback: 上一轮验证/评判失败时的补充说明，可注入到首轮之后的重试（由主流程传入）。
+    根据输入图表生成 Matplotlib 或 ECharts 代码。
+
+    参数:
+        output_format: "matplotlib" 或 "echarts"
     """
-    user_text = (
-        "请阅读附图中的图表，并输出满足上述要求的完整 Python 代码。"
-    ) # 用户prompt
+    # 根据输出格式选择 System Prompt 和代码提取函数
+    if output_format.lower() == "echarts":
+        system_prompt = SYSTEM_AGENT1_ECHARTS
+        code_block_lang = "javascript"
+    else:
+        system_prompt = SYSTEM_AGENT1
+        code_block_lang = "python"
+
+    user_text = "请阅读附图中的图表，并输出满足上述要求的完整代码。"
     if extra_feedback:
         user_text += "\n\n【上一轮反馈与需改进点】\n" + extra_feedback.strip()
 
     messages = [
-        {"role": "system", "content": SYSTEM_AGENT1},
+        {"role": "system", "content": system_prompt},
         {
             "role": "user",
             "content": [
@@ -134,7 +218,13 @@ def agent1_generate_code(
         },
     ]
     raw = call_vlm(messages, model=vlm_model)
-    code = extract_python_code(raw)
+
+    # 提取对应语言的代码块
+    if output_format.lower() == "echarts":
+        code = extract_javascript_code(raw)
+    else:
+        code = extract_python_code(raw)
+
     return code
 
 
@@ -142,27 +232,39 @@ def agent1_generate_and_dispatch(
     input_chart_image_path: str,
     preset: Optional[Agent1Preset] = None,
     extra_feedback: Optional[str] = None,
-    vlm_model: str = "qwen3.5-plus",
+    output_format: str = "matplotlib",
+    vlm_model: str = "qwen-vl-max",
     llm_model: str = "qwen-plus",
 ) -> Agent1DispatchResult:
     """
     Agent1 增强版能力：
-    1) 根据输入图像生成代码；
+    1) 根据输入图像生成代码（支持 Matplotlib/ECharts）；
     2) 根据预设渲染代码图像；
     3) 将生成图像输入 Agent2（视觉评估）；
     4) 将生成代码输入 Agent3（代码评估）与 Agent4（修订优化）。
 
-    该函数不会改变现有流水线行为；仅在调用本函数时启用上述编排能力。
+    参数:
+        output_format: "matplotlib" 或 "echarts"
     """
     cfg = preset or Agent1Preset()
     os.makedirs(cfg.out_dir, exist_ok=True)
 
     generated_code = agent1_generate_code(
         input_chart_image_path=input_chart_image_path,
+        output_format=output_format,
         extra_feedback=extra_feedback,
         vlm_model=vlm_model,
     )
-    code_path = os.path.join(cfg.out_dir, cfg.generated_code_filename)
+
+    # 根据输出格式设置文件名
+    if output_format.lower() == "echarts":
+        code_filename = "agent1_generated_echarts.js"
+        chart_filename = "agent1_generated_echarts.png"
+    else:
+        code_filename = "agent1_generated_matplotlib.py"
+        chart_filename = "agent1_generated_chart.png"
+
+    code_path = os.path.join(cfg.out_dir, code_filename)
     Path(code_path).write_text(generated_code, encoding="utf-8")
 
     generated_chart_path: Optional[str] = None
@@ -171,15 +273,20 @@ def agent1_generate_and_dispatch(
     optimized_code: Optional[str] = None
 
     if cfg.generate_chart_image:
-        out_png = os.path.join(cfg.out_dir, cfg.generated_chart_filename)
-        generated_chart_path, error = render_matplotlib_code_to_png(generated_code, out_png)
+        out_png = os.path.join(cfg.out_dir, chart_filename)
+        if output_format.lower() == "echarts":
+            from utils.echarts_render import render_echarts_sync
+            generated_chart_path, error = render_echarts_sync(generated_code, out_png)
+        else:
+            generated_chart_path, error = render_matplotlib_code_to_png(generated_code, out_png)
+
         if error:
             raise RuntimeError(f"Agent1 代码渲染失败: {error}")
 
     if cfg.dispatch_to_agents:
         if not generated_chart_path:
             raise RuntimeError(
-                "Agent1 已启用分发，但未生成可用图像。请检查 Playwright 与渲染环境。"
+                "Agent1 已启用分发，但未生成可用图像。请检查渲染环境。"
             )
 
         # 生成图像 -> 视觉评估智能体
@@ -209,9 +316,14 @@ def agent1_generate_and_dispatch(
             Path(os.path.join(cfg.out_dir, "agent1_dispatch_report_agent3.txt")).write_text(
                 code_report, encoding="utf-8"
             )
-            Path(os.path.join(cfg.out_dir, "agent1_dispatch_code_agent4.py")).write_text(
-                optimized_code, encoding="utf-8"
-            )
+            if output_format.lower() == "echarts":
+                Path(os.path.join(cfg.out_dir, "agent1_dispatch_code_agent4.js")).write_text(
+                    optimized_code, encoding="utf-8"
+                )
+            else:
+                Path(os.path.join(cfg.out_dir, "agent1_dispatch_code_agent4.py")).write_text(
+                    optimized_code, encoding="utf-8"
+                )
 
     return Agent1DispatchResult(
         generated_code=generated_code,

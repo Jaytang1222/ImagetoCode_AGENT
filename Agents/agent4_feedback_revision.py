@@ -86,7 +86,7 @@ def agent4_feedback_optimize_code(
         "【视觉审查智能体输出（Agent2）】\n"
         f"{chart_evaluation_report}\n\n"
         "【当前代码】\n"
-        f"```python\n{echarts_inline_js}\n```\n\n"
+        f"``python\n{echarts_inline_js}\n```\n\n"
         "请融合两类反馈进行渐进式修正，输出可进入验证器下一轮评估的完整 Python 代码。"
     )
     messages = [

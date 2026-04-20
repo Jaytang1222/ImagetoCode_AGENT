@@ -46,6 +46,13 @@ def main() -> None:
         default=0.75,
         help="验证器通过分数阈值（0~1）",
     )
+    parser.add_argument(
+        "--format",
+        type=str,
+        default="matplotlib",
+        choices=["matplotlib", "echarts"],
+        help="输出代码格式：Matplotlib Python 或 ECharts JavaScript",
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.input):
@@ -53,12 +60,23 @@ def main() -> None:
         print("请将参考图放在该路径，或使用 -i 指定。")
         sys.exit(1)
 
-    ok, code_path, png_path, summary = run_full_pipeline(
-        input_chart_image=args.input,
-        out_dir=args.out,
-        max_loops=args.max_loops,
-        threshold=args.threshold,
-    )
+    # 根据格式选择流水线
+    if args.format.lower() == "echarts":
+        from Agents.agent_pipeline_echarts import run_echarts_pipeline
+        ok, code_path, png_path, summary = run_echarts_pipeline(
+            input_chart_image=args.input,
+            out_dir=args.out,
+            max_loops=args.max_loops,
+            threshold=args.threshold,
+        )
+    else:
+        from Agents.agent_pipeline import run_full_pipeline
+        ok, code_path, png_path, summary = run_full_pipeline(
+            input_chart_image=args.input,
+            out_dir=args.out,
+            max_loops=args.max_loops,
+            threshold=args.threshold,
+        )
     print("\n--- 结果 ---")
     print("验证通过:", ok)
     print("代码文件:", code_path)

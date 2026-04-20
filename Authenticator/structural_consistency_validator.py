@@ -33,21 +33,30 @@ def evaluate_structural_consistency(
     *,
     resize_to: Tuple[int, int] = (512, 512),
     max_keypoints: int = 12,
-    ssim_weight: float = 0.45,
-    topology_weight: float = 0.55,
+    ssim_weight: float = 0.50,
+    topology_weight: float = 0.50,
+    multi_scale_ssim: bool = True,
 ) -> StructuralConsistencyResult:
     """
     计算整体结构一致性分数（0~1）。
-    - SSIM 对应公式中的亮度/对比度/结构比较项；
-    - Topology 使用关键元素几何中心间的距离与角度关系。
+
+    优化改进：
+    - 支持多尺度 SSIM（默认开启）
+    - Harris 角点检测 + 边缘检测融合
+    - 降低单一尺度对渲染引擎差异的敏感度
     """
     a = _load_gray_array(original_image_path, resize_to)
     b = _load_gray_array(generated_image_path, resize_to)
 
-    ssim_score = _ssim(a, b)
+    # 使用多尺度 SSIM（增强对渲染差异的鲁棒性）
+    if multi_scale_ssim:
+        ssim_score = _multi_scale_ssim(a, b, scales=3)
+    else:
+        ssim_score = _ssim(a, b)
 
-    pts_a = _extract_keypoint_centers(a, max_keypoints=max_keypoints)
-    pts_b = _extract_keypoint_centers(b, max_keypoints=max_keypoints)
+    # Harris 角点 + 边缘检测融合的关键点提取
+    pts_a = _extract_keypoint_centers_harris(a, max_keypoints=max_keypoints)
+    pts_b = _extract_keypoint_centers_harris(b, max_keypoints=max_keypoints)
     distance_consistency, angle_consistency, matched_n = _topology_consistency(pts_a, pts_b)
     topology_score = _clamp01(0.6 * distance_consistency + 0.4 * angle_consistency)
 
@@ -65,6 +74,7 @@ def evaluate_structural_consistency(
             "ssim_weight": float(ssim_weight),
             "topology_weight": float(topology_weight),
             "max_keypoints": float(max_keypoints),
+            "multi_scale_ssim": float(multi_scale_ssim),
         },
     )
 
@@ -221,3 +231,111 @@ def _greedy_match_points(pts_a: np.ndarray, pts_b: np.ndarray) -> List[Tuple[int
 
 def _clamp01(v: float) -> float:
     return max(0.0, min(1.0, float(v)))
+
+
+def _multi_scale_ssim(x: np.ndarray, y: np.ndarray, scales: int = 3) -> float:
+    """
+    多尺度 SSIM - 在不同分辨率下计算 SSIM 后加权平均
+    提升对渲染引擎差异（抗锯齿、字体渲染）的鲁棒性
+
+    参数:
+        x, y: 输入图像（归一化灰度图）
+        scales: 缩放层级数（1=原图，2=原图+1/2，3=原图+1/2+1/4）
+
+    返回:
+        多尺度加权平均 SSIM 值
+    """
+    scores = []
+    weights = []
+
+    for i in range(scales):
+        scale_factor = 2 ** i
+
+        if scale_factor == 1:
+            # 原图
+            x_scaled = x
+            y_scaled = y
+        else:
+            try:
+                from scipy.ndimage import zoom
+                x_scaled = zoom(x, 1.0 / scale_factor, order=1)  # order=1 为双线性插值
+                y_scaled = zoom(y, 1.0 / scale_factor, order=1)
+            except ImportError:
+                # 无 scipy 时跳过该尺度
+                continue
+
+        score = _ssim(x_scaled, y_scaled)
+        scores.append(score)
+        weights.append(1.0 / scale_factor)  # 原图权重最大
+
+    if not scores:
+        return _ssim(x, y)
+
+    weight_sum = sum(weights)
+    return sum(s * w for s, w in zip(scores, weights)) / weight_sum
+
+
+def _extract_keypoint_centers_harris(arr: np.ndarray, max_keypoints: int) -> np.ndarray:
+    """
+    Harris 角点 + 边缘检测融合的关键点提取
+    - Harris 角点检测：对角点敏感
+    - 边缘检测：对线条敏感
+    - 两者加权融合：提升关键点稳定性
+    """
+    # 1. 边缘检测
+    img = Image.fromarray(np.clip(arr * 255.0, 0, 255).astype(np.uint8), mode="L")
+    edge = img.filter(ImageFilter.FIND_EDGES)
+    edge_arr = np.asarray(edge, dtype=np.float32)
+
+    # 2. Harris 角点检测（使用 scipy 的 Sobel 算子）
+    try:
+        from scipy.ndimage import sobel
+        # 计算一阶导数
+        dx = sobel(arr, axis=1, mode='constant')
+        dy = sobel(arr, axis=0, mode='constant')
+
+        # 计算二阶导数
+        dxx = sobel(dx, axis=1, mode='constant')
+        dyy = sobel(dy, axis=0, mode='constant')
+        dxy = sobel(dx, axis=0, mode='constant')
+
+        # Harris 响应函数: R = det(M) - k * trace(M)^2
+        det = (dxx * dyy) - (dxy ** 2)
+        trace = dxx + dyy
+        harris_response = np.abs(det - 0.04 * (trace ** 2))  # k=0.04
+    except ImportError:
+        # 无 scipy 时使用简单边缘
+        harris_response = np.zeros_like(edge_arr)
+
+    # 3. 融合边缘和角点响应
+    combined = edge_arr * 0.6 + harris_response * 0.4
+    combined = combined / np.max(combined) * 255.0
+
+    # 4. 二值化（降低阈值以保留更多关键点）
+    th = float(np.mean(combined) + 0.6 * np.std(combined))
+    mask = combined > th
+
+    # 5. 连通域分析
+    comps = _connected_components(mask)
+    if not comps:
+        return np.zeros((0, 2), dtype=np.float32)
+
+    # 6. 按面积和响应强度排序
+    for comp in comps:
+        # 计算该连通域的 Harris 响应强度
+        y, x = int(comp['cy']), int(comp['cx'])
+        if 0 <= y < harris_response.shape[0] and 0 <= x < harris_response.shape[1]:
+            comp['response'] = harris_response[y, x]
+        else:
+            comp['response'] = 0.0
+
+    # 按面积 * 响应强度 排序
+    comps.sort(key=lambda c: c["area"] * c.get("response", 1.0), reverse=True)
+    top = comps[: max(max_keypoints, 1)]
+
+    # 7. 归一化坐标
+    pts = np.array([[c["cx"], c["cy"]] for c in top], dtype=np.float32)
+    h, w = arr.shape
+    pts[:, 0] /= max(w, 1)
+    pts[:, 1] /= max(h, 1)
+    return pts
