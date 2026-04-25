@@ -139,6 +139,7 @@ matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, ConnectionPatch, Rectangle, Circle, Ellipse, Polygon, Wedge
 
 # 尝试导入 pandas（可选）
 try:

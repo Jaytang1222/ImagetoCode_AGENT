@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Optional
 
 
-ECHARTS_CDN = "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"
+# 使用本地 Flask 服务提供的 ECharts，避免浏览器 Tracking Prevention 阻止 CDN
+ECHARTS_CDN = "/static/js/echarts.min.js"
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="zh-CN">

@@ -23,9 +23,13 @@ def run_full_pipeline(
     max_loops: int = 5,
     threshold: float = 0.75,
     strict_algorithm_mode: bool = True,
+    progress_callback=None,
 ) -> Tuple[bool, Optional[str], Optional[str], str]:
     """
     返回 (是否验证通过, 最终 JS 代码路径, 最终渲染 PNG 路径, 最后一轮说明摘要)。
+    
+    Args:
+        progress_callback: 可选的回调函数，签名为 callback(step_name: str, progress_percent: int)
     """
     os.makedirs(out_dir, exist_ok=True)
     code_path = os.path.join(out_dir, "current_matplotlib.py")
@@ -36,8 +40,13 @@ def run_full_pipeline(
 
     for loop in range(max_loops):
         print(f"\n{'='*20} 第 {loop + 1}/{max_loops} 轮 {'='*20}")
+        
+        # 计算基础进度（每轮约占总进度的 80%，剩余 20% 给验证）
+        base_progress = int((loop / max_loops) * 80)
 
         if strict_algorithm_mode:
+            if progress_callback:
+                progress_callback(f"第{loop+1}轮 - Agent1: 代码生成", base_progress + 5)
             print("[Agent1] 代码生成 + 分发评审（严格流程）…")
             agent1_result = agent1_generate_and_dispatch(
                 input_chart_image_path=input_chart_image,
@@ -61,6 +70,9 @@ def run_full_pipeline(
             Path(
                 os.path.join(out_dir, f"current_matplotlib_after_agent4_r{loop+1}.py")
             ).write_text(code_new, encoding="utf-8")
+            
+            if progress_callback:
+                progress_callback(f"第{loop+1}轮 - Agent4: 反馈优化", base_progress + 15)
         else:
             if loop == 0:
                 print("[Agent1] 代码生成（VLM）…")
@@ -102,12 +114,16 @@ def run_full_pipeline(
             ).write_text(code_new, encoding="utf-8")
 
         print("[渲染] Agent4 输出再截图…")
+        if progress_callback:
+            progress_callback(f"第{loop+1}轮 - 渲染图表", base_progress + 60)
         png_final, error = render_matplotlib_code_to_png(code_new, gen_png)
         if not png_final:
             last_summary = f"Agent4 后截图失败: {error}"
             return False, code_path, None, last_summary
 
         print("[多维验证器] 对比原图与复现图…")
+        if progress_callback:
+            progress_callback(f"第{loop+1}轮 - 多维验证", base_progress + 75)
         ok, score, last_summary = multidimensional_validate(
             input_chart_image, png_final, threshold=threshold
         )

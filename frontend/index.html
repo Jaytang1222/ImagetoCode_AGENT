@@ -13,7 +13,8 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: url('../static/images/虎溪风景2.jpg') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
             padding: 20px;
         }
@@ -300,6 +301,11 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         .code-preview {
             background: #f8f9fa;
@@ -327,7 +333,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🤖 多智能体图表复现系统</h1>
+            <h1>多智能体图表复现系统</h1>
             <p>基于 Agent1→2→3→4 流水线的智能图表生成与优化</p>
         </header>
 
@@ -392,10 +398,10 @@
 
             <div class="result-section" id="resultSection">
                 <h3>📈 生成结果</h3>
-                <img id="resultImage" class="preview-image" src="" alt="生成的图表">
+                <img id="resultImage" class="preview-image" src="" alt="生成的图表" style="display: none;">
                 
                 <h4>生成的代码预览：</h4>
-                <div class="code-preview" id="codePreview"></div>
+                <div class="code-preview" id="codePreview" style="display: none;"></div>
                 
                 <div class="download-buttons">
                     <button class="btn" onclick="downloadCode()">💾 下载代码</button>
@@ -414,16 +420,25 @@
         </div>
     </div>
 
-    <!-- 预览模态框 -->
+    <!-- 图表预览模态框 (HTML/代码) -->
     <div id="previewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
         <div style="background: white; border-radius: 15px; width: 90%; height: 90%; max-width: 1400px; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
             <div style="padding: 20px; border-bottom: 2px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; color: #333;">📊 图表预览</h3>
+                <h3 id="previewModalTitle" style="margin: 0; color: #333;">📊 图表预览</h3>
                 <button onclick="closePreviewModal()" style="background: #ff4757; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 1em; transition: all 0.3s;" onmouseover="this.style.background='#ff6b81'" onmouseout="this.style.background='#ff4757'">✖ 关闭</button>
             </div>
             <div style="flex: 1; padding: 20px; overflow: hidden;">
                 <iframe id="previewIframe" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #f8f9fa;"></iframe>
             </div>
+        </div>
+    </div>
+
+    <!-- 图片预览模态框 -->
+    <div id="imagePreviewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1001; justify-content: center; align-items: center;">
+        <div style="position: relative; max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center;">
+            <button onclick="closeImagePreviewModal()" style="position: absolute; top: -50px; right: 0; background: #ff4757; color: white; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; font-size: 1.1em; transition: all 0.3s; box-shadow: 0 4px 15px rgba(255,71,87,0.4);" onmouseover="this.style.background='#ff6b81'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#ff4757'; this.style.transform='scale(1)'">✖ 关闭</button>
+            <img id="previewImage" src="" alt="生成的图表" style="max-width: 100%; max-height: 85vh; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); object-fit: contain;">
+            <div id="imagePreviewTitle" style="color: white; margin-top: 15px; font-size: 1.1em; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);"></div>
         </div>
     </div>
 
@@ -469,6 +484,42 @@
                 <p><strong>${file.name}</strong></p>
                 <p style="font-size: 0.9em; color: #666;">${(file.size / 1024).toFixed(2)} KB</p>
             `;
+            
+            // 显示上传图片预览
+            showUploadedImagePreview(file);
+        }
+        
+        // 显示上传图片预览（即时预览，无需等待上传）
+        function showUploadedImagePreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // 检查是否已存在预览区域
+                let previewContainer = document.getElementById('uploadImagePreview');
+                if (!previewContainer) {
+                    // 创建预览容器
+                    previewContainer = document.createElement('div');
+                    previewContainer.id = 'uploadImagePreview';
+                    previewContainer.style.cssText = `
+                        margin-top: 20px;
+                        text-align: center;
+                        animation: fadeIn 0.5s ease;
+                    `;
+                    
+                    // 添加到上传区域后面，参数配置区域之前
+                    const uploadSection = document.querySelector('.upload-section');
+                    const paramsSection = uploadSection.querySelector('.params-section');
+                    uploadSection.insertBefore(previewContainer, paramsSection);
+                }
+                
+                // 设置预览内容
+                previewContainer.innerHTML = `
+                    <div style="background: white; border-radius: 10px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: inline-block;">
+                        <h4 style="margin: 0 0 10px 0; color: #667eea;">📷 参考图片预览</h4>
+                        <img src="${e.target.result}" alt="参考图片" style="max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
         }
 
         // 开始任务
@@ -497,6 +548,13 @@
                 if (response.ok) {
                     currentTaskId = data.task_id;
                     document.getElementById('statusSection').classList.add('active');
+                    
+                    // 隐藏上传的图片预览（任务开始后不需要再显示）
+                    const uploadPreview = document.getElementById('uploadImagePreview');
+                    if (uploadPreview) {
+                        uploadPreview.style.display = 'none';
+                    }
+                    
                     startPolling();
                 } else {
                     alert('上传失败: ' + data.error);
@@ -544,6 +602,9 @@
                     
                     if (task.status === 'completed') {
                         showResults(task);
+                    } else if (task.status === 'failed' || task.status === 'error') {
+                        // 显示错误信息
+                        console.error('任务失败:', task.message);
                     }
                     
                     loadTaskList();
@@ -591,39 +652,167 @@
         // 显示结果
         function showResults(task) {
             const resultSection = document.getElementById('resultSection');
+            const resultTitle = resultSection.querySelector('h3');
             resultSection.classList.add('active');
 
-            // 加载图片
-            const resultImage = document.getElementById('resultImage');
-            resultImage.src = `/api/download/image/${currentTaskId}`;
+            // 根据任务状态更新标题
+            if (task.status === 'completed') {
+                resultTitle.textContent = '📈 生成结果';
+                
+                // 加载图片到结果区域
+                const resultImage = document.getElementById('resultImage');
+                resultImage.src = `/api/download/image/${currentTaskId}`;
+                resultImage.style.display = 'block';
+                
+                // 在上传区域下方也显示生成的图片
+                showGeneratedImageInUploadArea();
 
-            // 加载代码预览
-            fetch(`/api/download/code/${currentTaskId}`)
-                .then(response => response.text())
-                .then(code => {
-                    const codePreview = document.getElementById('codePreview');
-                    codePreview.textContent = code.substring(0, 500) + (code.length > 500 ? '...' : '');
-                })
-                .catch(error => console.error('加载代码失败:', error));
+                // 加载代码预览
+                fetch(`/api/download/code/${currentTaskId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('代码文件不存在');
+                        }
+                        return response.text();
+                    })
+                    .then(code => {
+                        const codePreview = document.getElementById('codePreview');
+                        codePreview.textContent = code.substring(0, 500) + (code.length > 500 ? '...' : '');
+                        codePreview.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('加载代码失败:', error);
+                        const codePreview = document.getElementById('codePreview');
+                        codePreview.textContent = '⚠️ 代码文件不可用';
+                        codePreview.style.color = '#ff6b6b';
+                    });
+            } else if (task.status === 'failed' || task.status === 'error') {
+                resultTitle.textContent = '❌ 任务失败';
+                resultTitle.style.color = '#ff4757';
+                
+                // 隐藏图片和代码区域
+                const resultImage = document.getElementById('resultImage');
+                resultImage.style.display = 'none';
+                
+                const codePreview = document.getElementById('codePreview');
+                codePreview.style.display = 'block';
+                codePreview.textContent = `错误信息: ${task.message || '未知错误'}`;
+                codePreview.style.color = '#ff4757';
+                codePreview.style.background = '#fff5f5';
+            }
+        }
+        
+        // 在上传区域下方显示生成的图片
+        function showGeneratedImageInUploadArea() {
+            console.log('[DEBUG] showGeneratedImageInUploadArea called, currentTaskId:', currentTaskId);
+            
+            // 检查是否已存在生成图片预览区域
+            let previewContainer = document.getElementById('generatedImagePreview');
+            if (!previewContainer) {
+                // 创建预览容器
+                previewContainer = document.createElement('div');
+                previewContainer.id = 'generatedImagePreview';
+                previewContainer.style.cssText = `
+                    margin-top: 20px;
+                    text-align: center;
+                    animation: fadeIn 0.5s ease;
+                `;
+                
+                // 添加到上传区域后面
+                const uploadSection = document.querySelector('.upload-section');
+                const paramsSection = uploadSection.querySelector('.params-section');
+                uploadSection.insertBefore(previewContainer, paramsSection);
+                
+                console.log('[DEBUG] Preview container created and inserted');
+            }
+            
+            // 设置预览内容 - 使用字符串拼接而非模板字符串
+            const imageUrl = '/api/download/image/' + currentTaskId;
+            previewContainer.innerHTML = `
+                <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-radius: 15px; padding: 20px; box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2); border: 2px solid #667eea30;">
+                    <h4 style="margin: 0 0 15px 0; color: #667eea; font-size: 1.2em;">✨ 生成的图表</h4>
+                    <img id="generatedPreviewImg" src="${imageUrl}" alt="生成的图表" 
+                         style="max-width: 100%; max-height: 400px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.3s;"
+                         onmouseover="this.style.transform='scale(1.02)'" 
+                         onmouseout="this.style.transform='scale(1)'"
+                         onclick="openGeneratedImageModal()">
+                    <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button class="btn" style="padding: 8px 20px; font-size: 0.9em;" onclick="downloadGeneratedImage()">💾 下载图片</button>
+                        <button class="btn" style="padding: 8px 20px; font-size: 0.9em; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="openGeneratedImageModal()">🔍 放大查看</button>
+                    </div>
+                </div>
+            `;
+            
+            console.log('[DEBUG] Preview content set with URL:', imageUrl);
+        }
+        
+        // 打开放大的生成图片模态框
+        function openGeneratedImageModal() {
+            const modal = document.getElementById('imagePreviewModal');
+            const image = document.getElementById('previewImage');
+            const title = document.getElementById('imagePreviewTitle');
+            
+            image.src = `/api/download/image/${currentTaskId}`;
+            title.textContent = '✨ 生成的图表 - 放大查看';
+            modal.style.display = 'flex';
+        }
+        
+        // 下载生成的图片
+        function downloadGeneratedImage() {
+            if (currentTaskId) {
+                window.open(`/api/download/image/${currentTaskId}`, '_blank');
+            }
         }
 
         // 下载代码
         function downloadCode() {
             if (currentTaskId) {
-                window.open(`/api/download/code/${currentTaskId}`, '_blank');
+                // 先检查任务状态
+                fetch(`/api/tasks/${currentTaskId}`)
+                    .then(response => response.json())
+                    .then(task => {
+                        if (task.status === 'completed') {
+                            window.open(`/api/download/code/${currentTaskId}`, '_blank');
+                        } else {
+                            alert(`无法下载代码：任务状态为 "${getStatusText(task.status)}"\n${task.message || ''}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('检查任务状态失败:', error);
+                        alert('下载失败，请稍后重试');
+                    });
+            } else {
+                alert('请先运行一个任务');
             }
         }
 
         // 下载图片
         function downloadImage() {
             if (currentTaskId) {
-                window.open(`/api/download/image/${currentTaskId}`, '_blank');
+                // 先检查任务状态
+                fetch(`/api/tasks/${currentTaskId}`)
+                    .then(response => response.json())
+                    .then(task => {
+                        if (task.status === 'completed') {
+                            window.open(`/api/download/image/${currentTaskId}`, '_blank');
+                        } else {
+                            alert(`无法下载图片：任务状态为 "${getStatusText(task.status)}"\n${task.message || ''}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('检查任务状态失败:', error);
+                        alert('下载失败，请稍后重试');
+                    });
+            } else {
+                alert('请先运行一个任务');
             }
         }
 
         // 打开预览
         function openPreview() {
             if (currentTaskId) {
+                const titleElement = document.getElementById('previewModalTitle');
+                titleElement.textContent = '📊 图表在线预览';
                 window.open(`/api/preview/${currentTaskId}`, '_blank');
             }
         }
@@ -660,10 +849,14 @@
                                 <div style="font-size: 0.85em; color: #666;">
                                     💾 ${sizeMB} MB
                                 </div>
-                                <div style="margin-top: 8px;">
+                                <div style="margin-top: 8px; display: flex; gap: 5px; justify-content: flex-end;">
+                                    <button class="btn" style="padding: 5px 15px; font-size: 0.85em; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" 
+                                            onclick="event.stopPropagation(); previewTaskImage('${dirName}')">
+                                        🖼️ 预览图片
+                                    </button>
                                     <button class="btn" style="padding: 5px 15px; font-size: 0.85em;" 
                                             onclick="event.stopPropagation(); viewOutputDetails('${dirName}')">
-                                        👁️ 查看
+                                        👁️ 查看代码
                                     </button>
                                 </div>
                             </div>
@@ -687,22 +880,199 @@
             return dirName;
         }
         
-        // 查看任务详情
-        function viewOutputDetails(dirName) {
+        // 查看任务详情（显示 Python 代码）
+        async function viewOutputDetails(dirName) {
             const modal = document.getElementById('previewModal');
             const iframe = document.getElementById('previewIframe');
+            const titleElement = document.getElementById('previewModalTitle');
             
-            // 设置 iframe 的 src 为 preview.html（使用后端 API）
-            iframe.src = `/api/preview/dir/${encodeURIComponent(dirName)}`;
+            // 更新标题
+            titleElement.textContent = '📝 查看 Python 代码';
+            
+            try {
+                // 调用新接口获取 Python 代码
+                const response = await fetch(`/api/code/dir/${encodeURIComponent(dirName)}`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // 创建包含代码的 HTML 页面
+                    const codeHtml = `
+                        <!DOCTYPE html>
+                        <html lang="zh-CN">
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>${data.filename}</title>
+                            <style>
+                                * {
+                                    margin: 0;
+                                    padding: 0;
+                                    box-sizing: border-box;
+                                }
+                                body {
+                                    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                                    background: #f5f5f5;
+                                    padding: 20px;
+                                }
+                                .header {
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    padding: 15px 20px;
+                                    border-radius: 8px 8px 0 0;
+                                    margin-bottom: 0;
+                                }
+                                .header h2 {
+                                    font-size: 1.2em;
+                                    margin: 0;
+                                }
+                                .code-container {
+                                    background: white;
+                                    border-radius: 0 0 8px 8px;
+                                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                                    overflow: hidden;
+                                }
+                                pre {
+                                    padding: 20px;
+                                    overflow-x: auto;
+                                    line-height: 1.6;
+                                    font-size: 14px;
+                                    color: #333;
+                                    white-space: pre-wrap;
+                                    word-wrap: break-word;
+                                }
+                                .line-numbers {
+                                    color: #999;
+                                    user-select: none;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="header">
+                                <h2>📝 ${data.filename}</h2>
+                            </div>
+                            <div class="code-container">
+                                <pre><code>${escapeHtml(data.content)}</code></pre>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                    
+                    // 将 HTML 内容设置为 iframe 的 srcdoc
+                    iframe.srcdoc = codeHtml;
+                } else {
+                    // 显示错误信息
+                    const errorHtml = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <style>
+                                body {
+                                    font-family: Arial, sans-serif;
+                                    display: flex;
+                                    justify-content: center;
+                                    align-items: center;
+                                    height: 100vh;
+                                    margin: 0;
+                                    background: #f5f5f5;
+                                }
+                                .error-box {
+                                    text-align: center;
+                                    padding: 40px;
+                                    background: white;
+                                    border-radius: 10px;
+                                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                                }
+                                .error-icon {
+                                    font-size: 4em;
+                                    margin-bottom: 20px;
+                                }
+                                h2 {
+                                    color: #ff4757;
+                                    margin-bottom: 10px;
+                                }
+                                p {
+                                    color: #666;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="error-box">
+                                <div class="error-icon">⚠️</div>
+                                <h2>无法加载代码</h2>
+                                <p>${data.error || '未知错误'}</p>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                    iframe.srcdoc = errorHtml;
+                }
+            } catch (error) {
+                console.error('加载代码失败:', error);
+                const errorHtml = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                margin: 0;
+                                background: #f5f5f5;
+                            }
+                            .error-box {
+                                text-align: center;
+                                padding: 40px;
+                                background: white;
+                                border-radius: 10px;
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                            }
+                            .error-icon {
+                                font-size: 4em;
+                                margin-bottom: 20px;
+                            }
+                            h2 {
+                                color: #ff4757;
+                                margin-bottom: 10px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="error-box">
+                            <div class="error-icon">❌</div>
+                            <h2>网络错误</h2>
+                            <p>无法连接到服务器</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                iframe.srcdoc = errorHtml;
+            }
             
             // 显示模态框
             modal.style.display = 'flex';
+        }
+        
+        // HTML 转义函数
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
         
         // 关闭预览模态框
         function closePreviewModal() {
             const modal = document.getElementById('previewModal');
             const iframe = document.getElementById('previewIframe');
+            const titleElement = document.getElementById('previewModalTitle');
             
             // 隐藏模态框
             modal.style.display = 'none';
@@ -710,7 +1080,11 @@
             // 清空 iframe src 以释放资源
             setTimeout(() => {
                 iframe.src = '';
+                iframe.srcdoc = '';
             }, 300);
+            
+            // 重置标题
+            titleElement.textContent = '📊 图表预览';
         }
         
         // 点击模态框背景关闭
@@ -730,6 +1104,63 @@
             console.log('查看任务:', dirName);
             // 这里可以添加更多逻辑，比如加载该任务的详细信息
         }
+
+        // 预览任务图片
+        function previewTaskImage(dirName) {
+            const modal = document.getElementById('imagePreviewModal');
+            const image = document.getElementById('previewImage');
+            const title = document.getElementById('imagePreviewTitle');
+            
+            // 构建图片 URL (使用目录名直接访问)
+            const imageUrl = `/api/download/image/dir/${encodeURIComponent(dirName)}`;
+            
+            // 先设置事件处理器(在设置 src 之前)
+            image.onload = function() {
+                console.log('图片加载成功:', imageUrl);
+            };
+            
+            // 图片加载失败时不自动关闭,保持模态框打开
+            image.onerror = function() {
+                console.log('图片加载失败:', imageUrl);
+                // 显示默认提示图片
+                image.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wn5OQIOmZouaPkOS6pOivt+S9vTwvdGV4dD48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjY2NjIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7pmLLliqjmtYvor5XvvJrlkI7kv6HvvJzor7fplIDlrrLliqjmtYvor5U8L3RleHQ+PC9zdmc+';
+            };
+            
+            // 设置标题
+            title.textContent = `📊 ${dirName} - 生成图表`;
+            
+            // 最后设置图片源
+            image.src = imageUrl;
+            
+            // 显示模态框
+            modal.style.display = 'flex';
+        }
+        
+        // 关闭图片预览模态框
+        function closeImagePreviewModal() {
+            const modal = document.getElementById('imagePreviewModal');
+            const image = document.getElementById('previewImage');
+            
+            // 隐藏模态框
+            modal.style.display = 'none';
+            
+            // 清空图片 src 以释放资源
+            setTimeout(() => {
+                image.src = '';
+            }, 300);
+        }
+        
+        // 点击图片模态框背景关闭
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageModal = document.getElementById('imagePreviewModal');
+            if (imageModal) {
+                imageModal.addEventListener('click', function(e) {
+                    if (e.target === imageModal) {
+                        closeImagePreviewModal();
+                    }
+                });
+            }
+        });
 
         // 选择任务
         function selectTask(taskId) {

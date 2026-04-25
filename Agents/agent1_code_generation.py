@@ -32,11 +32,13 @@ SYSTEM_AGENT1 = """你是数据可视化与 Matplotlib 专家。
 6. 只输出 Python 代码，使用 ```python 代码块包裹
 7. 代码中 output_path 变量会由外部传入，不要硬编码路径
 8. 尽可能还原：颜色、线型、标记、图例位置、坐标轴刻度、标题等细节
+9. 如果使用 FancyArrowPatch、FancyBboxPatch 等 patches 类，必须从 matplotlib.patches 导入，例如：from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 示例输出结构：
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import FancyBboxPatch  # 如果需要这些类
 
 # 设置中文字体（如果需要）
 plt.rcParams['font.sans-serif'] = ['SimHei']

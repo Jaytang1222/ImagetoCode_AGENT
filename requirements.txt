@@ -1,13 +1,19 @@
+# -*- requirements -*-
+# AI & API
 dashscope>=1.14.0
-<<<<<<< HEAD
-playwright>=1.40.0
+
+# Web Framework
 flask>=3.0.0
 flask-cors>=4.0.0
-=======
-numpy>=1.24.0
+
+# Browser Automation
+playwright>=1.40.0
+
+# Image Processing & OCR
 Pillow>=10.0.0
+numpy>=1.24.0
+scipy>=1.10.0
 pytesseract>=0.3.10
-matplotlib>=3.7.0
-pandas>=2.0.0
+
+# Utilities
 python-dotenv>=1.0.0
->>>>>>> 2ac731af3f1338ccdc6d8b06e9a74d82350364e0
