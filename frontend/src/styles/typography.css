@@ -1,0 +1,134 @@
+/* ==================== Typography Utility Classes ==================== */
+/* Based on Apple Design System typography hierarchy */
+
+.text-hero-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-hero-xl-size);
+  font-weight: var(--text-hero-xl-weight);
+  line-height: var(--text-hero-xl-line);
+  letter-spacing: var(--text-hero-xl-spacing);
+}
+
+.text-hero-l {
+  font-family: var(--font-display);
+  font-size: var(--text-hero-l-size);
+  font-weight: var(--text-hero-l-weight);
+  line-height: var(--text-hero-l-line);
+  letter-spacing: var(--text-hero-l-spacing);
+}
+
+.text-section {
+  font-family: var(--font-display);
+  font-size: var(--text-section-size);
+  font-weight: var(--text-section-weight);
+  line-height: var(--text-section-line);
+  letter-spacing: var(--text-section-spacing);
+}
+
+.text-product {
+  font-family: var(--font-display);
+  font-size: var(--text-product-size);
+  font-weight: var(--text-product-weight);
+  line-height: var(--text-product-line);
+  letter-spacing: var(--text-product-spacing);
+}
+
+.text-feature {
+  font-family: var(--font-display);
+  font-size: var(--text-feature-size);
+  font-weight: var(--text-feature-weight);
+  line-height: var(--text-feature-line);
+  letter-spacing: var(--text-feature-spacing);
+}
+
+.text-promo {
+  font-family: var(--font-display);
+  font-size: var(--text-promo-size);
+  font-weight: var(--text-promo-weight);
+  line-height: var(--text-promo-line);
+  letter-spacing: var(--text-promo-spacing);
+}
+
+.text-card {
+  font-family: var(--font-display);
+  font-size: var(--text-card-size);
+  font-weight: var(--text-card-weight);
+  line-height: var(--text-card-line);
+  letter-spacing: var(--text-card-spacing);
+}
+
+.text-utility {
+  font-family: var(--font-text);
+  font-size: var(--text-utility-size);
+  font-weight: var(--text-utility-weight);
+  line-height: var(--text-utility-line);
+  letter-spacing: var(--text-utility-spacing);
+}
+
+.text-link-heading {
+  font-family: var(--font-text);
+  font-size: var(--text-link-heading-size);
+  font-weight: var(--text-link-heading-weight);
+  line-height: var(--text-link-heading-line);
+  letter-spacing: var(--text-link-heading-spacing);
+}
+
+.text-subhead {
+  font-family: var(--font-text);
+  font-size: var(--text-subhead-size);
+  font-weight: var(--text-subhead-weight);
+  line-height: var(--text-subhead-line);
+  letter-spacing: var(--text-subhead-spacing);
+}
+
+.text-body {
+  font-family: var(--font-text);
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-weight);
+  line-height: var(--text-body-line);
+  letter-spacing: var(--text-body-spacing);
+}
+
+.text-body-emphasis {
+  font-family: var(--font-text);
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-emphasis-weight);
+  line-height: var(--text-body-emphasis-line);
+  letter-spacing: var(--text-body-spacing);
+}
+
+.text-control {
+  font-family: var(--font-text);
+  font-size: var(--text-control-size);
+  font-weight: var(--text-control-weight);
+  line-height: var(--text-control-line);
+  letter-spacing: var(--text-control-spacing);
+}
+
+.text-micro {
+  font-family: var(--font-text);
+  font-size: var(--text-micro-size);
+  font-weight: var(--text-micro-weight);
+  line-height: var(--text-micro-line);
+  letter-spacing: var(--text-micro-spacing);
+}
+
+.text-legal {
+  font-family: var(--font-text);
+  font-size: var(--text-legal-size);
+  font-weight: var(--text-legal-weight);
+  line-height: var(--text-legal-line);
+  letter-spacing: var(--text-legal-spacing);
+}
+
+/* ========== Font Weight Utilities ========== */
+.font-light { font-weight: 300; }
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+/* ========== Text Alignment ========== */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }

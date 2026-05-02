@@ -40,7 +40,9 @@ ENV/
 .env.local
 
 # Output Files
-outputs/
+storage/uploads/
+storage/outputs/
+storage/cache/
 *.png
 *.jpg
 *.jpeg
@@ -49,6 +51,7 @@ outputs/
 !requirements.txt
 
 # Logs
+logs/
 *.log
 
 # Playwright

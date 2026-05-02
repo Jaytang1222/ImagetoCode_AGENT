@@ -1,0 +1,243 @@
+/* ==================== Apple Design System Variables ==================== */
+/* This file contains all design tokens extracted from Design.md */
+
+:root {
+  /* ========== Primary Colors ========== */
+  --color-black: #000000;
+  --color-pale-gray: #f8faf9;
+  --color-near-black: #1d1d1f;
+  --color-white: #ffffff;
+
+  /* ========== Brand Colors ========== */
+  --color-primary-green: #a5e7a5;
+  --color-primary-blue: #addeef;
+  --color-primary-green-dark: #7dd17d;
+  --color-primary-blue-dark: #7bc9e3;
+  
+  /* ========== Accent Colors ========== */
+  --color-action-blue: #5cb8d9;
+  --color-link-blue: #4aa8c9;
+  --color-bright-link-blue: #addeef;
+  --color-success-green: #a5e7a5;
+  --color-accent-gradient: linear-gradient(135deg, #a5e7a5 0%, #addeef 100%);
+
+  /* ========== Dark Surfaces ========== */
+  --color-graphite-a: #1a2f2f;
+  --color-graphite-b: #1e3535;
+  --color-graphite-c: #223a3a;
+  --color-graphite-d: #264040;
+  
+  /* ========== Light Surfaces ========== */
+  --color-surface-light: #ffffff;
+  --color-surface-elevated: #fafbfb;
+  --color-surface-accent: #f0f9f9;
+
+  /* ========== Neutrals & Text ========== */
+  --color-secondary-gray: #6e7575;
+  --color-soft-border: #d8e5e5;
+  --color-mid-border: #a0b5b5;
+  --color-utility-dark: #3a4545;
+  --color-text-primary: #1a2828;
+  --color-text-secondary: #5a6868;
+
+  /* ========== Typography - Font Families ========== */
+  --font-display: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-text: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  /* ========== Typography Scale ========== */
+  /* Hero Display XL - 80px */
+  --text-hero-xl-size: 80px;
+  --text-hero-xl-weight: 600;
+  --text-hero-xl-line: 1.05;
+  --text-hero-xl-spacing: -1.2px;
+
+  /* Hero Display L - 56px */
+  --text-hero-l-size: 56px;
+  --text-hero-l-weight: 600;
+  --text-hero-l-line: 1.07;
+  --text-hero-l-spacing: -0.28px;
+
+  /* Section Display - 48px */
+  --text-section-size: 48px;
+  --text-section-weight: 600;
+  --text-section-line: 1.08;
+  --text-section-spacing: -0.144px;
+
+  /* Product Heading - 40px */
+  --text-product-size: 40px;
+  --text-product-weight: 600;
+  --text-product-line: 1.10;
+  --text-product-spacing: normal;
+
+  /* Feature Display - 38px */
+  --text-feature-size: 38px;
+  --text-feature-weight: 600;
+  --text-feature-line: 1.21;
+  --text-feature-spacing: 0.152px;
+
+  /* Promo Display - 32px */
+  --text-promo-size: 32px;
+  --text-promo-weight: 600;
+  --text-promo-line: 1.13;
+  --text-promo-spacing: 0.352px;
+
+  /* Card/Product Title - 28px */
+  --text-card-size: 28px;
+  --text-card-weight: 600;
+  --text-card-line: 1.14;
+  --text-card-spacing: 0.196px;
+
+  /* Utility Heading - 24px */
+  --text-utility-size: 24px;
+  --text-utility-weight: 600;
+  --text-utility-line: 1.17;
+  --text-utility-spacing: 0.216px;
+
+  /* Link/Action Heading - 21px */
+  --text-link-heading-size: 21px;
+  --text-link-heading-weight: 600;
+  --text-link-heading-line: 1.38;
+  --text-link-heading-spacing: 0.231px;
+
+  /* Subhead - 19px */
+  --text-subhead-size: 19px;
+  --text-subhead-weight: 600;
+  --text-subhead-line: 1.21;
+  --text-subhead-spacing: 0.228px;
+
+  /* Body Primary - 17px */
+  --text-body-size: 17px;
+  --text-body-weight: 400;
+  --text-body-line: 1.47;
+  --text-body-spacing: -0.374px;
+
+  /* Body Emphasis - 17px */
+  --text-body-emphasis-weight: 600;
+  --text-body-emphasis-line: 1.24;
+
+  /* Control Label - 14px */
+  --text-control-size: 14px;
+  --text-control-weight: 400;
+  --text-control-line: 1.47;
+  --text-control-spacing: -0.224px;
+
+  /* Micro UI - 12px */
+  --text-micro-size: 12px;
+  --text-micro-weight: 400;
+  --text-micro-line: 1.33;
+  --text-micro-spacing: -0.12px;
+
+  /* Legal/Meta - 10px */
+  --text-legal-size: 10px;
+  --text-legal-weight: 400;
+  --text-legal-line: 1.47;
+  --text-legal-spacing: -0.08px;
+
+  /* ========== Spacing System (8px base) ========== */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-7: 7px;
+  --space-8: 8px;
+  --space-9: 9px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-17: 17px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-56: 56px;
+  --space-64: 64px;
+  --space-80: 80px;
+  --space-96: 96px;
+
+  /* ========== Border Radius Scale ========== */
+  --radius-tiny: 5px;
+  --radius-small: 8px;
+  --radius-medium: 12px;
+  --radius-large: 18px;
+  --radius-xlarge: 28px;
+  --radius-xxlarge: 36px;
+  --radius-capsule-small: 56px;
+  --radius-capsule-large: 100px;
+  --radius-pill: 980px;
+  --radius-circle: 50%;
+
+  /* ========== Shadows ========== */
+  --shadow-subtle: rgba(0, 0, 0, 0.04) 0 2px 8px, rgba(165, 231, 165, 0.08) 0 1px 4px;
+  --shadow-medium: rgba(0, 0, 0, 0.08) 0 4px 16px, rgba(173, 222, 239, 0.12) 0 2px 8px;
+  --shadow-strong: rgba(0, 0, 0, 0.12) 0 8px 32px, rgba(165, 231, 165, 0.15) 0 4px 16px;
+  --shadow-glow-green: 0 0 20px rgba(165, 231, 165, 0.3);
+  --shadow-glow-blue: 0 0 20px rgba(173, 222, 239, 0.3);
+
+  /* ========== Transitions ========== */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  /* ========== Breakpoints (for reference in JS) ========== */
+  --breakpoint-mobile-small: 374px;
+  --breakpoint-mobile: 640px;
+  --breakpoint-tablet: 833px;
+  --breakpoint-tablet-wide: 1023px;
+  --breakpoint-desktop: 1240px;
+  --breakpoint-desktop-wide: 1440px;
+}
+
+/* ========== Responsive Typography Adjustments ========== */
+
+/* Small Mobile - 374px and below */
+@media (max-width: 374px) {
+  :root {
+    --text-hero-xl-size: 40px;
+    --text-hero-l-size: 32px;
+    --text-section-size: 28px;
+    --text-product-size: 24px;
+    --text-feature-size: 24px;
+    --text-promo-size: 21px;
+  }
+}
+
+/* Mobile - 375px to 640px */
+@media (max-width: 640px) {
+  :root {
+    --text-hero-xl-size: 48px;
+    --text-hero-l-size: 40px;
+    --text-section-size: 32px;
+    --text-product-size: 28px;
+    --text-feature-size: 28px;
+    --text-promo-size: 24px;
+    --text-card-size: 24px;
+  }
+}
+
+/* Tablet - 641px to 833px */
+@media (min-width: 641px) and (max-width: 833px) {
+  :root {
+    --text-hero-xl-size: 56px;
+    --text-hero-l-size: 48px;
+    --text-section-size: 40px;
+    --text-product-size: 32px;
+  }
+}
+
+/* Tablet Wide - 834px to 1023px */
+@media (min-width: 834px) and (max-width: 1023px) {
+  :root {
+    --text-hero-xl-size: 64px;
+    --text-hero-l-size: 52px;
+    --text-section-size: 44px;
+  }
+}
+
+/* Large Desktop - 1441px and above */
+@media (min-width: 1441px) {
+  :root {
+    --text-hero-xl-size: 96px;
+    --text-hero-l-size: 64px;
+    --text-section-size: 56px;
+  }
+}

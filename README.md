@@ -1,59 +1,79 @@
-# 多智能体图表复现框架
+# 多智能体图表复现系统
 
-基于阿里云 DashScope API 的多智能体流水线，从参考图表自动生成 ECharts 代码，通过多轮迭代优化实现高质量图表复现。
+基于阿里云 DashScope API 的多智能体流水线，从参考图表自动生成 Matplotlib 代码，通过多轮迭代优化实现高质量图表复现。支持命令行和 Web 界面两种使用方式。
 
-## 核心功能
+## 系统特性
 
-- **Agent 1**：多模态模型读图生成 ECharts 代码
-- **Agent 2**：视觉差异评估（颜色、坐标轴、文本、趋势）
-- **Agent 3**：代码修正指导
-- **Agent 4**：融合反馈执行渐进式修订
-- **多维验证器**：VLM + 算法融合打分（颜色/文本/结构一致性，支持图表类型自适应）
+- **多智能体协作**：Agent1（代码生成）→ Agent2（视觉评估）→ Agent3（代码分析）→ Agent4（反馈修订）
+- **多维验证器**：融合颜色、文本、结构一致性和 VLM 感知的综合评分系统
+- **Web 可视化界面**：实时查看流水线进度、历史记录和对比结果
+- **命令行工具**：支持批量处理和自动化集成
 
 ## 快速开始
 
-### 1. 环境要求
+### 环境要求
 
 - Python 3.9+
+- Node.js 16+（仅 Web 界面需要）
 - 阿里云 DashScope API Key
-- Tesseract OCR（用于文本一致性验证）
+- Tesseract OCR
 
-### 2. 安装依赖
+### 安装步骤
+
+#### 1. 安装 Python 依赖
 
 ```bash
-cd MultiAgentFrame-main
+# 安装核心依赖
 pip install -r requirements.txt
+
+# 安装后端依赖（仅 Web 界面需要）
+pip install -r backend/requirements.txt
 ```
 
-### 3. 配置环境变量
+#### 2. 安装 Tesseract OCR
 
-在项目根目录创建或编辑 `.env` 文件：
+下载并安装 [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki)，记录安装路径备用。
+
+#### 3. 配置环境变量
+
+在项目根目录创建 `.env` 文件：
 
 ```env
 DASHSCOPE_API_KEY=your_api_key_here
 TESSERACT_CMD=your_tesseract_path_here
 ```
 
-需要先安装 [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki)，然后在 `.env` 中配置正确的安装路径。
-
-### 4. 运行
-
-准备参考图表（如 `data/test.png`），执行：
-
-```bash
-python experiments/main.py -i data/test.png -o outputs --max-loops 5 --threshold 0.75
+**Windows 示例**：
+```env
+DASHSCOPE_API_KEY=sk-xxxxxxxxxxxxxxxx
+TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
 ```
 
-### 5. 查看结果
+**Linux/Mac 示例**：
+```env
+DASHSCOPE_API_KEY=sk-xxxxxxxxxxxxxxxx
+TESSERACT_CMD=/usr/bin/tesseract
+```
 
-输出目录 `outputs/` 包含：
-- `current_echarts.js`：生成的 ECharts 代码
-- `preview.html`：可在浏览器中预览
-- `generated_chart.png`：渲染截图
-- `report_agent2_*.txt`、`report_agent3_*.txt`：各轮评判报告
-- `validator_round*.txt`：验证结果
+#### 4. 安装前端依赖（仅 Web 界面需要）
 
-## 命令行参数
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+## 使用方式
+
+### 方式一：命令行工具
+
+适合批量处理和自动化集成。
+
+```bash
+python scripts/cli.py -i data/test.png -o storage/outputs --max-loops 5 --threshold 0.75
+```
+
+**命令行参数**：
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
@@ -62,12 +82,43 @@ python experiments/main.py -i data/test.png -o outputs --max-loops 5 --threshold
 | `--max-loops` | 最大迭代轮数 | `5` |
 | `--threshold` | 验证通过阈值（0~1） | `0.75` |
 
+**输出文件**：
+- `current_matplotlib.py`：生成的 Matplotlib 代码
+- `generated_chart.png`：渲染截图
+- `report_agent2_*.txt`：视觉评估报告
+- `report_agent3_*.txt`：代码分析报告
+- `validator_round*.txt`：验证结果
+
+### 方式二：Web 界面
+
+提供可视化操作界面，实时查看流水线进度。
+
+#### 启动后端服务
+
+```bash
+python scripts/start_service.py
+```
+
+后端服务将在 `http://localhost:8000` 启动，同时前端界面将在 `http://localhost:5173` 启动。
+
+API 文档访问 `http://localhost:8000/docs`。
+
+#### 使用 Web 界面
+
+1. 打开浏览器访问 `http://localhost:5173`
+2. 上传参考图表图片
+3. 配置流水线参数（最大轮数、阈值等）
+4. 点击"开始生成"启动流水线
+5. 实时查看各 Agent 执行状态和进度
+6. 查看生成结果和对比效果
+7. 下载生成的代码和图表
+
 ## 工作流程
 
 ```
 参考图 → Agent1(生成代码) → 渲染截图 → Agent2(视觉评估) 
        → Agent3(代码分析) → Agent4(修订代码) → 多维验证器
-       → 未通过则进入下一轮迭代
+       → 未通过则进入下一轮迭代（最多 max_loops 轮）
 ```
 
 ## 多维验证器
@@ -79,27 +130,79 @@ python experiments/main.py -i data/test.png -o outputs --max-loops 5 --threshold
 3. **结构一致性**：SSIM + 空间拓扑关系
 4. **VLM 感知**：语义和整体观感补充
 
-支持图表类型自适应（line/bar/scatter/pie/radar/heatmap），动态调整权重和阈值。
+支持图表类型自适应，动态调整权重和阈值。
 
 ## 项目结构
 
 ```
-MultiAgentFrame-main/
-├── Agents/              # 四个智能体实现
-├── Authenticator/       # 多维验证器
-├── utils/               # API 调用和渲染工具
-├── experiments/         # 主入口
-├── data/                # 测试数据
-├── outputs/             # 输出目录
-├── requirements.txt     # 依赖列表
-└── .env                 # 环境变量配置
+.
+├── src/                     # 核心源代码
+│   ├── agents/              # 四个智能体实现
+│   │   ├── agent1_code_generation.py
+│   │   ├── agent2_visual_judgment.py
+│   │   ├── agent3_code_evaluation.py
+│   │   ├── agent4_feedback_revision.py
+│   │   └── pipeline.py      # 流水线编排
+│   ├── validators/          # 多维验证器
+│   │   ├── color_consistency_validator.py
+│   │   ├── text_consistency_validator.py
+│   │   ├── structural_consistency_validator.py
+│   │   └── multidim_validator.py
+│   └── utils/               # 工具函数
+│       ├── dashscope_api.py
+│       └── matplotlib_render.py
+├── backend/                 # FastAPI 后端服务
+│   ├── api/                 # API 路由
+│   ├── services/            # 业务逻辑
+│   ├── websocket/           # WebSocket 管理
+│   └── main.py              # 后端入口
+├── frontend/                # Vue 3 前端界面
+│   ├── src/
+│   │   ├── components/      # UI 组件
+│   │   ├── services/        # API 服务
+│   │   └── stores/          # 状态管理
+│   └── package.json
+├── scripts/                 # 脚本工具
+│   ├── start_service.py     # 启动服务
+│   ├── restart_service.py   # 重启服务
+│   └── cli.py               # 命令行工具
+├── storage/                 # 运行时存储
+│   ├── uploads/             # 上传文件
+│   └── outputs/             # 输出结果
+├── logs/                    # 日志文件
+├── data/                    # 测试数据
+├── requirements.txt         # Python 依赖
+└── .env                     # 环境变量配置
 ```
 
-## 依赖说明
+## 常见问题
 
-主要依赖（详见 `requirements.txt`）：
-- `dashscope`：阿里云 API
-- `playwright`：浏览器自动化
-- `pytesseract`：OCR 文本识别
-- `numpy`、`Pillow`：图像处理
-- `python-dotenv`：环境变量管理
+### 1. Tesseract OCR 找不到
+
+确保已正确安装 Tesseract 并在 `.env` 文件中配置了正确的路径。
+
+### 2. API Key 无效
+
+检查 `.env` 文件中的 `DASHSCOPE_API_KEY` 是否正确，确保有足够的配额。
+
+### 3. 前端无法连接后端
+
+确保后端服务已启动（`http://localhost:8000`），检查防火墙设置。
+
+### 4. 生成的图表不准确
+
+尝试增加 `--max-loops` 参数值，或降低 `--threshold` 阈值。
+
+## 技术栈
+
+**后端**：
+- FastAPI - Web 框架
+- DashScope - 阿里云多模态 AI 服务
+- Matplotlib - 图表渲染
+- Pytesseract - OCR 文本识别
+
+**前端**：
+- Vue 3 - 前端框架
+- Vite - 构建工具
+- Pinia - 状态管理
+- WebSocket - 实时通信
