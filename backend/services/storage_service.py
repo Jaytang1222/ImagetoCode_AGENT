@@ -79,11 +79,15 @@ class StorageService:
         
         # 查找报告文件
         report_files = list(output_dir.glob("report_*.txt"))
-        files["reports"] = [str(f) for f in report_files]
+        files["reports"] = [str(f) for f in sorted(report_files)]
         
-        # 查找验证结果
+        # 查找验证结果（txt格式）
         validator_files = list(output_dir.glob("validator_*.txt"))
-        files["validators"] = [str(f) for f in validator_files]
+        files["validators"] = [str(f) for f in sorted(validator_files)]
+        
+        # 查找验证结果（json格式）
+        validator_json_files = list(output_dir.glob("validator_*.json"))
+        files["validators_json"] = [str(f) for f in sorted(validator_json_files)]
         
         return files
 

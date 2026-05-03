@@ -124,7 +124,9 @@ class PipelineService:
                 pipeline["output_dir"],
                 pipeline["config"]["max_loops"],
                 pipeline["config"]["threshold"],
-                pipeline["config"]["strict_mode"]
+                pipeline["config"].get("model_provider"),
+                pipeline["config"].get("vlm_model"),
+                pipeline["config"].get("llm_model")
             )
             
             # 更新结果

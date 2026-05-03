@@ -3,6 +3,38 @@
     <h3 class="text-utility mb-20">配置参数</h3>
     
     <div class="config-form">
+      <!-- 模型提供商选择 -->
+      <div class="form-group">
+        <label class="form-label">模型提供商</label>
+        <select v-model="localConfig.modelProvider" class="apple-select">
+          <option value="qwen">阿里云通义千问 (Qwen)</option>
+          <option value="openai">OpenAI GPT</option>
+          <option value="claude">Anthropic Claude</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="glm">智谱 GLM</option>
+        </select>
+        <p class="helper-text">选择用于图表生成和评估的AI模型</p>
+      </div>
+
+      <!-- VLM 模型名称 -->
+      <AppleInput
+        v-model="localConfig.vlmModel"
+        type="text"
+        label="VLM 模型名称（可选）"
+        :placeholder="getVlmPlaceholder()"
+        helperText="多模态模型，用于图像理解。留空使用默认值"
+      />
+
+      <!-- LLM 模型名称 -->
+      <AppleInput
+        v-model="localConfig.llmModel"
+        type="text"
+        label="LLM 模型名称（可选）"
+        :placeholder="getLlmPlaceholder()"
+        helperText="文本模型，用于代码评估。留空使用默认值"
+      />
+      
       <AppleInput
         v-model="localConfig.maxLoops"
         type="number"
@@ -23,21 +55,6 @@
         :min="0"
         :max="1"
       />
-      
-      <div class="switch-group">
-        <label class="switch-label">
-          <input
-            v-model="localConfig.strictMode"
-            type="checkbox"
-            class="switch-input"
-          />
-          <span class="switch-slider"></span>
-          <span class="switch-text">
-            <span class="text-control font-semibold">严格算法模式</span>
-            <span class="text-micro text-secondary">启用完整的Agent分发流程</span>
-          </span>
-        </label>
-      </div>
       
       <div class="button-group">
         <AppleButton 
@@ -70,7 +87,9 @@ const props = defineProps({
     default: () => ({
       maxLoops: 5,
       threshold: 0.75,
-      strictMode: true
+      modelProvider: 'qwen',
+      vlmModel: '',
+      llmModel: ''
     })
   }
 })
@@ -80,10 +99,48 @@ const emit = defineEmits(['update:config', 'save'])
 const defaultConfig = {
   maxLoops: 5,
   threshold: 0.75,
-  strictMode: true
+  modelProvider: 'qwen',
+  vlmModel: '',
+  llmModel: ''
 }
 
 const localConfig = ref({ ...props.config })
+
+// 模型默认值映射
+const modelDefaults = {
+  qwen: {
+    vlm: 'qwen3.5-plus',
+    llm: 'qwen-plus'
+  },
+  openai: {
+    vlm: 'gpt-4o',
+    llm: 'gpt-4o'
+  },
+  claude: {
+    vlm: 'claude-3-5-sonnet-20241022',
+    llm: 'claude-3-5-sonnet-20241022'
+  },
+  gemini: {
+    vlm: 'gemini-1.5-pro',
+    llm: 'gemini-1.5-pro'
+  },
+  deepseek: {
+    vlm: 'deepseek-chat',
+    llm: 'deepseek-chat'
+  },
+  glm: {
+    vlm: 'glm-4v',
+    llm: 'glm-4'
+  }
+}
+
+const getVlmPlaceholder = () => {
+  return modelDefaults[localConfig.value.modelProvider]?.vlm || 'qwen3.5-plus'
+}
+
+const getLlmPlaceholder = () => {
+  return modelDefaults[localConfig.value.modelProvider]?.llm || 'qwen-plus'
+}
 
 const isValid = computed(() => {
   const loops = Number(localConfig.value.maxLoops)
@@ -100,7 +157,9 @@ const handleSave = () => {
     const config = {
       maxLoops: Number(localConfig.value.maxLoops),
       threshold: Number(localConfig.value.threshold),
-      strictMode: localConfig.value.strictMode
+      modelProvider: localConfig.value.modelProvider || 'qwen',
+      vlmModel: localConfig.value.vlmModel || null,
+      llmModel: localConfig.value.llmModel || null
     }
     emit('update:config', config)
     emit('save', config)
@@ -124,60 +183,47 @@ const handleReset = () => {
   gap: var(--space-24);
 }
 
-.switch-group {
-  padding: var(--space-24);
-  background: linear-gradient(135deg, rgba(165, 231, 165, 0.08) 0%, rgba(173, 222, 239, 0.08) 100%);
-  border-radius: var(--radius-medium);
-  border: 1px solid rgba(173, 222, 239, 0.2);
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
 }
 
-.switch-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-12);
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.apple-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s ease;
   cursor: pointer;
 }
 
-.switch-input {
-  display: none;
+.apple-select:hover {
+  border-color: var(--color-border-hover);
 }
 
-.switch-slider {
-  position: relative;
-  width: 52px;
-  height: 30px;
-  background-color: var(--color-soft-border);
-  border-radius: var(--radius-pill);
-  transition: background-color var(--transition-base);
-  flex-shrink: 0;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+.apple-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 125, 250, 0.1);
 }
 
-.switch-slider::before {
-  content: '';
-  position: absolute;
-  width: 26px;
-  height: 26px;
-  left: 2px;
-  top: 2px;
-  background-color: var(--color-white);
-  border-radius: var(--radius-circle);
-  transition: transform var(--transition-base);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.switch-input:checked + .switch-slider {
-  background: var(--color-accent-gradient);
-}
-
-.switch-input:checked + .switch-slider::before {
-  transform: translateX(22px);
-}
-
-.switch-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+.helper-text {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin: 0;
+  line-height: 1.4;
 }
 
 .button-group {

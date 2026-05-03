@@ -16,9 +16,30 @@ SERVER_HOST = os.getenv("SERVER_HOST", "localhost")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
 BASE_URL = os.getenv("BASE_URL", f"http://{SERVER_HOST}:{SERVER_PORT}")
 
-# API配置
-DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
+# API配置 - 多模型支持
+# 当前使用的模型提供商 (qwen, openai, claude, gemini, deepseek, glm)
+MODEL_PROVIDER = os.getenv("MODEL_PROVIDER", "qwen")
+
+# 各提供商的 API Key
+QWEN_API_KEY = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")  # 兼容旧配置
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+GLM_API_KEY = os.getenv("GLM_API_KEY")
+
+# OpenAI 兼容的自定义 Base URL (可选)
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
+
+# 默认模型名称
+DEFAULT_VLM_MODEL = os.getenv("DEFAULT_VLM_MODEL", "qwen3.5-plus")
+DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "qwen-plus")
+
+# 其他配置
 TESSERACT_CMD = os.getenv("TESSERACT_CMD")
+
+# 兼容性：保留旧的变量名
+DASHSCOPE_API_KEY = QWEN_API_KEY
 
 # 文件存储配置
 UPLOAD_DIR = BASE_DIR / "storage" / "uploads"
@@ -35,4 +56,3 @@ ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 # 流水线默认配置
 DEFAULT_MAX_LOOPS = 5
 DEFAULT_THRESHOLD = 0.75
-DEFAULT_STRICT_MODE = True

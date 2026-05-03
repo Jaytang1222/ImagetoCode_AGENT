@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-"""DashScope（通义）API 封装：VLM 多模态与纯文本 LLM。"""
+"""
+DashScope（通义）API 封装：VLM 多模态与纯文本 LLM。
+此文件保留用于向后兼容，新代码请使用 unified_api.py
+"""
 from __future__ import annotations
 
 import os
@@ -7,9 +10,6 @@ import re
 import time
 from http import HTTPStatus
 from typing import Any, List, Optional, Union
-
-import dashscope
-import requests
 
 # 尝试加载 .env 文件
 try:
@@ -19,12 +19,24 @@ except ImportError:
     # 如果没有安装 python-dotenv，继续使用系统环境变量
     pass
 
+# 尝试导入统一 API（如果可用）
+try:
+    from src.utils.unified_api import call_vlm as unified_call_vlm
+    from src.utils.unified_api import call_llm as unified_call_llm
+    from src.utils.unified_api import extract_python_code as unified_extract_python_code
+    USE_UNIFIED_API = True
+except ImportError:
+    USE_UNIFIED_API = False
+    import dashscope
+    import requests
+
 
 def get_api_key() -> str:
-    key = os.environ.get("DASHSCOPE_API_KEY")
+    """获取 API Key（兼容旧配置）"""
+    key = os.environ.get("DASHSCOPE_API_KEY") or os.environ.get("QWEN_API_KEY")
     if not key:
         raise RuntimeError(
-            "请设置环境变量 DASHSCOPE_API_KEY 为阿里云百炼/灵积 API Key。"
+            "请设置环境变量 DASHSCOPE_API_KEY 或 QWEN_API_KEY 为阿里云百炼/灵积 API Key。"
         )
     return key
 
@@ -50,7 +62,20 @@ def call_vlm(
     max_retries: int = 3,
     timeout: int = 120,
 ) -> str:
-    """多模态对话（图片+文本），返回模型文本。"""
+    """
+    多模态对话（图片+文本），返回模型文本。
+    
+    如果配置了统一 API，将自动路由到对应的模型提供商。
+    否则使用原有的 DashScope 实现。
+    """
+    # 如果启用了统一 API，使用新的实现
+    if USE_UNIFIED_API:
+        provider = os.getenv("MODEL_PROVIDER", "qwen").lower()
+        if provider != "qwen":
+            # 使用统一 API
+            return unified_call_vlm(messages, model, max_retries, timeout)
+    
+    # 否则使用原有的 DashScope 实现
     import time
     import socket
     import ssl
@@ -138,7 +163,20 @@ def call_llm(
     max_retries: int = 3,
     timeout: int = 60,
 ) -> str:
-    """纯文本对话。"""
+    """
+    纯文本对话。
+    
+    如果配置了统一 API，将自动路由到对应的模型提供商。
+    否则使用原有的 DashScope 实现。
+    """
+    # 如果启用了统一 API，使用新的实现
+    if USE_UNIFIED_API:
+        provider = os.getenv("MODEL_PROVIDER", "qwen").lower()
+        if provider != "qwen":
+            # 使用统一 API
+            return unified_call_llm(messages, model, max_retries, timeout)
+    
+    # 否则使用原有的 DashScope 实现
     import time
     import socket
     import ssl
@@ -223,6 +261,11 @@ def _extract_text_from_mm_content(content: Any) -> str:
     
 def extract_python_code(raw: str) -> str:
     """从模型回复中提取 Python 代码块；若无围栏则返回去首尾空白的全文。"""
+    # 如果启用了统一 API，使用新的实现
+    if USE_UNIFIED_API:
+        return unified_extract_python_code(raw)
+    
+    # 否则使用原有实现
     raw = raw.strip()
     fence = re.search(
         r"```(?:python|py)?\s*([\s\S]*?)```",

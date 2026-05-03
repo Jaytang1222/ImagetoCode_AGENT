@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from src.agents.agent2_visual_judgment import agent2_chart_evaluation_report
 from src.agents.agent3_code_evaluation import agent3_code_evaluation_report
@@ -42,24 +42,62 @@ SYSTEM_AGENT1 = """# 智能体 1：代码生成智能体
 6. 变量 `output_path` 由外部提供 - 不要硬编码路径
 7. 只输出代码 - 不要有解释说明，代码块外不要有其他 markdown 内容
 
-## 提取协议
+## 输出前自检清单（内部验证 - 不要输出）
+在输出代码前，必须验证：
+- ✓ 代码包含 `import matplotlib.pyplot as plt`
+- ✓ 代码包含 `import numpy as np`
+- ✓ 代码包含 `fig, ax = plt.subplots(figsize=(9, 6))`
+- ✓ 代码包含 `plt.savefig(output_path, dpi=100, bbox_inches='tight')`
+- ✓ 代码不包含 `plt.show()`
+- ✓ 代码不包含硬编码的文件路径（如 '/tmp/output.png'）
+- ✓ 所有数据使用显式数组（np.array([1, 2, 3])），不使用 np.random
+- ✓ 所有颜色使用十六进制代码（#RRGGBB），不使用颜色名（'blue'）
+- ✓ 图例位置使用具体值（'upper right'），不使用 'best'
+- ✓ 代码语法正确，可以直接执行
+
+## 常见错误预防
+禁止以下做法：
+- ✗ 使用 `plt.show()` - 这会导致非交互环境挂起
+- ✗ 硬编码文件路径 - 必须使用变量 `output_path`
+- ✗ 使用 `np.random.rand()` 等随机生成器 - 除非原图明确是随机数据
+- ✗ 使用颜色名称（'blue', 'red'）- 必须使用十六进制代码（'#1f77b4', '#ff0000'）
+- ✗ 使用中文变量名 - 所有变量名必须是英文
+- ✗ 使用 `plt.figure()` 和 `plt.subplot()` - 必须使用 `fig, ax = plt.subplots()`
+- ✗ 图例位置使用 'best' - 使用具体位置如 'upper right', 'lower left'
+- ✗ 缺少 `plt.tight_layout()` - 这会导致标签被裁剪
+
+## 提取协议（按优先级）
 从输入图像中提取并复现：
+
+### P0 - 关键要素（必须准确）
 - 图表类型（折线图、柱状图、散点图、饼图、直方图等）
-- 数据系列数量和近似值
+- 数据系列数量
+- 坐标轴标签和标题的精确文本
+- 图例标签的精确文本
+
+### P1 - 主要视觉特征（高精度）
 - 颜色（精确的十六进制代码：#RRGGBB）
+- 坐标轴范围（xlim, ylim）
+- 坐标轴刻度间隔
+- 数据点的近似值（根据视觉比例）
+
+### P2 - 次要视觉特征（中精度）
 - 线型（实线 '-'、虚线 '--'、点线 ':'、点划线 '-.'）
 - 标记（圆圈 'o'、方块 's'、三角 '^'、菱形 'D'、星形 '*' 等）
-- 坐标轴标签和标题（精确文本）
-- 坐标轴范围和刻度间隔
-- 图例位置和标签
+- 图例位置（'upper right', 'upper left', 'lower right', 'lower left'）
 - 网格样式（开/关、透明度、线型）
+
+### P3 - 美观细节（低精度）
 - 字体大小（标题：14、标签：12、图例：10）
+- 线宽（linewidth）
+- 标记大小（markersize）
 
 ## 决策边界
 - 如果图表类型模糊：选择最常见的解释（折线图 > 柱状图 > 散点图）
-- 如果精确数据值不清楚：根据视觉比例近似
-- 如果颜色不清楚：使用 Matplotlib 默认色环
-- 如果文本不可读：使用占位符如 'Label 1'、'Series A'
+- 如果精确数据值不清楚：根据视觉比例近似，确保趋势正确
+- 如果颜色不清楚：使用 Matplotlib 默认色环（#1f77b4, #ff7f0e, #2ca02c, #d62728）
+- 如果文本不可读：使用占位符如 'Label 1'、'Series A'，但在注释中说明
+- 如果刻度间隔不清楚：选择合理的间隔（如 1, 2, 5, 10 的倍数）
 
 ## 失败处理
 - 如果图像不是图表：输出注释 `# ERROR: 输入不是有效的图表图像`
@@ -70,8 +108,9 @@ SYSTEM_AGENT1 = """# 智能体 1：代码生成智能体
 - 使用显式的数值，不使用随机生成器
 - 使用固定的颜色代码，不使用动态色图（除非是热力图）
 - 使用具体位置，图例不使用 'best'（优先使用 'upper right'）
+- 数据点数量应与原图一致（±1个点可接受）
 
-## 代码模板
+## 精简代码模板
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
@@ -80,43 +119,37 @@ import numpy as np
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
-# 创建图形
 fig, ax = plt.subplots(figsize=(9, 6))
 
-# 数据（从图像提取）
-x = np.array([...])  # 显式值
-y = np.array([...])  # 显式值
+# 数据
+x = np.array([0, 1, 2, 3, 4])
+y = np.array([10, 25, 20, 35, 30])
 
-# 绘图（使用显式参数）
+# 绘图
 ax.plot(x, y, color='#1f77b4', linewidth=2, marker='o', markersize=6, label='系列1')
 
-# 标签和标题
+# 配置
 ax.set_xlabel('X轴标签', fontsize=12)
 ax.set_ylabel('Y轴标签', fontsize=12)
 ax.set_title('图表标题', fontsize=14, fontweight='bold')
-
-# 坐标轴范围和刻度
-ax.set_xlim(0, 10)
-ax.set_ylim(0, 100)
-ax.set_xticks(np.arange(0, 11, 2))
-
-# 图例
+ax.set_xlim(0, 4)
+ax.set_ylim(0, 40)
+ax.set_xticks(np.arange(0, 5, 1))
 ax.legend(loc='upper right', fontsize=10)
-
-# 网格
 ax.grid(True, alpha=0.3, linestyle='--')
 
-# 保存
 plt.tight_layout()
 plt.savefig(output_path, dpi=100, bbox_inches='tight')
 ```
 
 ## 反馈整合
 如果提供了反馈：
-- 解析具体的参数变更（例如："将颜色改为 #ff0000"）
-- 只应用请求的变更
+- 仔细解析具体的参数变更（例如："将颜色改为 #ff0000"）
+- 只应用明确请求的变更
 - 保留所有其他正确的实现
-- 不要引入无关的修改"""
+- 不要引入无关的修改
+- 如果反馈中提到行号，定位到对应的代码位置
+- 如果反馈中有优先级标记（P0, P1, P2），优先处理高优先级项"""
 
 
 @dataclass
@@ -182,6 +215,51 @@ def agent1_generate_code(
     raw = call_vlm(messages, model=vlm_model)
     code = extract_python_code(raw)
     return code
+
+
+def agent1_generate_code_with_render(
+    input_chart_image_path: str,
+    out_dir: str,
+    extra_feedback: Optional[str] = None,
+    vlm_model: str = "qwen3.5-plus",
+) -> Tuple[str, str]:
+    """
+    Agent1 简化版：仅生成代码并渲染图像，不调用其他Agent。
+    专门为 Web 服务的显式编排设计。
+    
+    参数:
+        input_chart_image_path: 输入图表图像路径
+        out_dir: 输出目录
+        extra_feedback: 可选的反馈信息
+        vlm_model: VLM 模型名称
+    
+    返回:
+        Tuple[str, str]: (生成的代码, 渲染的图像路径)
+    
+    异常:
+        RuntimeError: 如果代码渲染失败
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    
+    # 生成代码
+    code = agent1_generate_code(
+        input_chart_image_path=input_chart_image_path,
+        extra_feedback=extra_feedback,
+        vlm_model=vlm_model,
+    )
+    
+    # 保存代码
+    code_path = os.path.join(out_dir, "agent1_generated_matplotlib.py")
+    Path(code_path).write_text(code, encoding="utf-8")
+    
+    # 渲染图像
+    png_path = os.path.join(out_dir, "agent1_generated_chart.png")
+    rendered_path, error = render_matplotlib_code_to_png(code, png_path)
+    
+    if error:
+        raise RuntimeError(f"Agent1 代码渲染失败: {error}")
+    
+    return code, rendered_path
 
 
 def agent1_generate_and_dispatch(

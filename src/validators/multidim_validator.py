@@ -93,10 +93,34 @@ def multidimensional_validate(
     chart_type: str = "auto",
     chart_report: str = "",
     code_report: str = "",
-) -> Tuple[bool, float, str]:
+) -> Tuple[bool, float, str, dict]:
     """
-    返回 (是否通过, 分数 0~1, 简短说明)。
-    模型需返回 JSON：{"score": 0.82, "pass": true, "summary": "..."}
+    返回 (是否通过, 最终分数 0~1, 简短说明, 详细结果字典)。
+    详细结果字典包含：
+    {
+        "final_score": float,
+        "passed": bool,
+        "threshold": float,
+        "chart_type": str,
+        "dimensions": {
+            "color": float,
+            "text": float,
+            "structure": float,
+            "vlm": float
+        },
+        "weights": {
+            "color": float,
+            "text": float,
+            "structure": float,
+            "vlm": float
+        },
+        "details": {
+            "color": {...},
+            "text": {...},
+            "structure": {...},
+            "vlm": {...}
+        }
+    }
     
     参数:
         chart_report: Agent2 的视觉评判报告
@@ -193,6 +217,54 @@ pass 的规则：若 score >= 0.75 则为 true，否则 false（除非你认为�
     )
     final_score = max(0.0, min(1.0, final_score))
     passed = final_score >= dynamic_threshold
+    
+    # 构建详细结果字典
+    detailed_result = {
+        "final_score": final_score,
+        "passed": passed,
+        "threshold": dynamic_threshold,
+        "chart_type": inferred_type,
+        "dimensions": {
+            "color": color_result.score,
+            "text": text_result.score,
+            "structure": struct_result.score,
+            "vlm": vlm_score
+        },
+        "weights": {
+            "color": weights["color"],
+            "text": weights["text"],
+            "structure": weights["struct"],
+            "vlm": weights["vlm"]
+        },
+        "details": {
+            "color": {
+                "score": color_result.score,
+                "global_hist_score": color_result.global_hist_score,
+                "block_match_score": color_result.block_match_score,
+                "hsv_score": color_result.hsv_score,
+                "hsv_distance": color_result.hsv_distance
+            },
+            "text": {
+                "score": text_result.score,
+                "bleu_score": text_result.bleu_score,
+                "layout_score": text_result.layout_score,
+                "coverage_score": text_result.coverage_score
+            },
+            "structure": {
+                "score": struct_result.score,
+                "ssim_score": struct_result.ssim_score,
+                "topology_score": struct_result.topology_score,
+                "distance_consistency": struct_result.distance_consistency,
+                "angle_consistency": struct_result.angle_consistency
+            },
+            "vlm": {
+                "score": vlm_score,
+                "summary": vlm_summary
+            }
+        }
+    }
+    
+    # 生成人类可读的摘要
     summary = (
         f"type={inferred_type}, thr={dynamic_threshold:.3f}, "
         f"w(vlm={weights['vlm']:.2f},color={weights['color']:.2f},"
@@ -207,7 +279,8 @@ pass 的规则：若 score >= 0.75 则为 true，否则 false（除非你认为�
         f" ang={struct_result.angle_consistency:.3f}) | "
         f"final={final_score:.3f}"
     )
-    return passed, final_score, summary
+    
+    return passed, final_score, summary, detailed_result
 
 
 def _parse_validator_json(raw: str, threshold: float) -> Tuple[float, bool, str]:
