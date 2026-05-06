@@ -1,0 +1,191 @@
+/* ==================== Utility Classes ==================== */
+/* Color, spacing, and layout utilities for Apple Design System */
+
+/* ========== Background Colors ========== */
+.bg-black { background-color: var(--color-black); }
+.bg-pale-gray { background-color: var(--color-pale-gray); }
+.bg-white { background-color: var(--color-white); }
+.bg-near-black { background-color: var(--color-near-black); }
+
+.bg-graphite-a { background-color: var(--color-graphite-a); }
+.bg-graphite-b { background-color: var(--color-graphite-b); }
+.bg-graphite-c { background-color: var(--color-graphite-c); }
+.bg-graphite-d { background-color: var(--color-graphite-d); }
+
+/* ========== Text Colors ========== */
+.text-black { color: var(--color-black); }
+.text-near-black { color: var(--color-near-black); }
+.text-white { color: var(--color-white); }
+.text-secondary { color: var(--color-secondary-gray); }
+
+.text-action-blue { color: var(--color-action-blue); }
+.text-link-blue { color: var(--color-link-blue); }
+.text-bright-link-blue { color: var(--color-bright-link-blue); }
+
+/* ========== Border Colors ========== */
+.border-soft { border-color: var(--color-soft-border); }
+.border-mid { border-color: var(--color-mid-border); }
+.border-action-blue { border-color: var(--color-action-blue); }
+
+/* ========== Border Radius ========== */
+.rounded-tiny { border-radius: var(--radius-tiny); }
+.rounded-small { border-radius: var(--radius-small); }
+.rounded-medium { border-radius: var(--radius-medium); }
+.rounded-large { border-radius: var(--radius-large); }
+.rounded-xlarge { border-radius: var(--radius-xlarge); }
+.rounded-xxlarge { border-radius: var(--radius-xxlarge); }
+.rounded-capsule-small { border-radius: var(--radius-capsule-small); }
+.rounded-capsule-large { border-radius: var(--radius-capsule-large); }
+.rounded-pill { border-radius: var(--radius-pill); }
+.rounded-circle { border-radius: var(--radius-circle); }
+.rounded-none { border-radius: 0; }
+
+/* ========== Spacing - Margin ========== */
+.m-0 { margin: 0; }
+.m-2 { margin: var(--space-2); }
+.m-4 { margin: var(--space-4); }
+.m-8 { margin: var(--space-8); }
+.m-12 { margin: var(--space-12); }
+.m-20 { margin: var(--space-20); }
+.m-24 { margin: var(--space-24); }
+.m-32 { margin: var(--space-32); }
+.m-40 { margin: var(--space-40); }
+.m-48 { margin: var(--space-48); }
+
+.mt-0 { margin-top: 0; }
+.mt-8 { margin-top: var(--space-8); }
+.mt-12 { margin-top: var(--space-12); }
+.mt-20 { margin-top: var(--space-20); }
+.mt-24 { margin-top: var(--space-24); }
+.mt-32 { margin-top: var(--space-32); }
+.mt-48 { margin-top: var(--space-48); }
+.mt-64 { margin-top: var(--space-64); }
+
+.mb-0 { margin-bottom: 0; }
+.mb-8 { margin-bottom: var(--space-8); }
+.mb-12 { margin-bottom: var(--space-12); }
+.mb-20 { margin-bottom: var(--space-20); }
+.mb-24 { margin-bottom: var(--space-24); }
+.mb-32 { margin-bottom: var(--space-32); }
+.mb-48 { margin-bottom: var(--space-48); }
+.mb-64 { margin-bottom: var(--space-64); }
+
+.ml-auto { margin-left: auto; }
+.mr-auto { margin-right: auto; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+
+/* ========== Spacing - Padding ========== */
+.p-0 { padding: 0; }
+.p-8 { padding: var(--space-8); }
+.p-12 { padding: var(--space-12); }
+.p-20 { padding: var(--space-20); }
+.p-24 { padding: var(--space-24); }
+.p-32 { padding: var(--space-32); }
+.p-40 { padding: var(--space-40); }
+.p-48 { padding: var(--space-48); }
+
+.px-8 { padding-left: var(--space-8); padding-right: var(--space-8); }
+.px-12 { padding-left: var(--space-12); padding-right: var(--space-12); }
+.px-20 { padding-left: var(--space-20); padding-right: var(--space-20); }
+.px-24 { padding-left: var(--space-24); padding-right: var(--space-24); }
+.px-32 { padding-left: var(--space-32); padding-right: var(--space-32); }
+
+.py-8 { padding-top: var(--space-8); padding-bottom: var(--space-8); }
+.py-12 { padding-top: var(--space-12); padding-bottom: var(--space-12); }
+.py-20 { padding-top: var(--space-20); padding-bottom: var(--space-20); }
+.py-24 { padding-top: var(--space-24); padding-bottom: var(--space-24); }
+.py-32 { padding-top: var(--space-32); padding-bottom: var(--space-32); }
+.py-48 { padding-top: var(--space-48); padding-bottom: var(--space-48); }
+.py-64 { padding-top: var(--space-64); padding-bottom: var(--space-64); }
+
+/* ========== Flexbox Utilities ========== */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+
+.items-start { align-items: flex-start; }
+.items-center { align-items: center; }
+.items-end { align-items: flex-end; }
+
+.justify-start { justify-content: flex-start; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+
+.gap-8 { gap: var(--space-8); }
+.gap-12 { gap: var(--space-12); }
+.gap-20 { gap: var(--space-20); }
+.gap-24 { gap: var(--space-24); }
+.gap-32 { gap: var(--space-32); }
+
+/* ========== Display ========== */
+.block { display: block; }
+.inline-block { display: inline-block; }
+.hidden { display: none; }
+
+/* ========== Width & Height ========== */
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.min-h-screen { min-height: 100vh; }
+
+/* ========== Shadows ========== */
+.shadow-subtle { box-shadow: var(--shadow-subtle); }
+.shadow-medium { box-shadow: var(--shadow-medium); }
+.shadow-strong { box-shadow: var(--shadow-strong); }
+.shadow-none { box-shadow: none; }
+
+/* ========== Transitions ========== */
+.transition-fast { transition: all var(--transition-fast); }
+.transition-base { transition: all var(--transition-base); }
+.transition-slow { transition: all var(--transition-slow); }
+
+/* ========== Cursor ========== */
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }
+
+/* ========== Overflow ========== */
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+
+/* ========== PC端优化 ========== */
+@media (min-width: 1024px) {
+  /* 平滑滚动 */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* 优化鼠标悬停效果 */
+  * {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  }
+}
+
+/* ========== 渐变背景工具类 ========== */
+.bg-gradient-primary {
+  background: var(--color-accent-gradient);
+}
+
+.bg-gradient-surface {
+  background: linear-gradient(135deg, rgba(165, 231, 165, 0.05) 0%, rgba(173, 222, 239, 0.05) 100%);
+}
+
+.bg-gradient-dark {
+  background: linear-gradient(135deg, var(--color-graphite-a) 0%, var(--color-graphite-b) 100%);
+}
+
+/* ========== 边框工具类 ========== */
+.border-gradient-primary {
+  border: 2px solid transparent;
+  background-image: linear-gradient(white, white), var(--color-accent-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* ========== 文字渐变工具类 ========== */
+.text-gradient-primary {
+  background: var(--color-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

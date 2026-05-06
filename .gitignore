@@ -1,4 +1,4 @@
-# Python
+# ===== Python =====
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,56 +16,166 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual Environment
+# ===== Virtual Environment =====
 venv/
 env/
 ENV/
 .venv
-.env
+.env.venv
 
-# IDE
+# ===== Environment Variables =====
+.env
+.env.local
+.env.*.local
+
+# ===== IDE and Editors =====
+# VS Code
 .vscode/
+*.code-workspace
+
+# PyCharm / IntelliJ
 .idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
 *.swp
 *.swo
 *~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
 
-# Environment Variables
-.env
-.env.local
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# Output Files
-outputs/
+# Linux
+*~
+.directory
+.Trash-*
+
+# ===== Project Specific =====
+# Storage directories (keep structure, ignore content)
+storage/uploads/*
+!storage/uploads/.gitignore
+storage/outputs/*
+!storage/outputs/.gitignore
+storage/cache/
+
+# Logs
+logs/*.log
+logs/*.txt
+!logs/.gitignore
+
+# Generated files
 *.png
 *.jpg
 *.jpeg
-*.html
-*.js
-!requirements.txt
+*.gif
+*.bmp
+*.tiff
+*.svg
+# But keep assets
+!frontend/src/assets/**
+!frontend/public/**
 
-# Logs
-*.log
-
-# Playwright
-.playwright/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
+# ===== Testing =====
 # pytest
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+.nox/
 
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# ===== Type Checking =====
 # mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
 
-# Tesseract
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# ===== Documentation =====
+# Sphinx
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# ===== Database =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== Temporary Files =====
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+
+# ===== Compiled Files =====
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# ===== Package Files =====
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# ===== Other Tools =====
+# Playwright
+.playwright/
+
+# Tesseract (if installed locally)
 tesseract/
+
+# Coverage reports
+coverage/
+*.cover
+
+# Profiling data
+*.prof

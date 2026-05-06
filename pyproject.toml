@@ -1,0 +1,47 @@
+[project]
+name = "multiagent-chart-reproduction"
+version = "1.0.0"
+description = "多智能体图表复现系统 - 基于阿里云DashScope的多智能体流水线"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "MultiAgentFrame Team"}
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/multiagent-chart-reproduction"
+Repository = "https://github.com/yourusername/multiagent-chart-reproduction"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_gitignore = true
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
