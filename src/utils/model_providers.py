@@ -15,10 +15,8 @@ class ModelProvider(str, Enum):
     """支持的模型提供商"""
     QWEN = "qwen"
     OPENAI = "openai"
-    CLAUDE = "claude"
     GEMINI = "gemini"
-    DEEPSEEK = "deepseek"
-    GLM = "glm"
+    DOUBAO = "doubao"
 
 
 class BaseModelClient(ABC):
@@ -265,119 +263,6 @@ class OpenAIClient(BaseModelClient):
                     raise
 
 
-class ClaudeClient(BaseModelClient):
-    """Anthropic Claude 客户端"""
-    
-    def __init__(self, api_key: str):
-        super().__init__(api_key)
-        try:
-            from anthropic import Anthropic
-            self.client = Anthropic(api_key=api_key)
-        except ImportError:
-            raise RuntimeError("请安装 anthropic 库: pip install anthropic")
-    
-    def _convert_messages(self, messages: List[dict]) -> tuple[str, List[dict]]:
-        """转换消息格式为 Claude 格式，返回 (system, messages)"""
-        system = ""
-        converted = []
-        
-        for msg in messages:
-            role = msg.get("role")
-            content = msg.get("content")
-            
-            if role == "system":
-                # Claude 的 system 是单独参数
-                if isinstance(content, str):
-                    system = content
-                elif isinstance(content, list):
-                    system = self._extract_text_from_content(content)
-            else:
-                if isinstance(content, str):
-                    converted.append({"role": role, "content": content})
-                elif isinstance(content, list):
-                    # 处理多模态内容
-                    new_content = []
-                    for item in content:
-                        if isinstance(item, dict):
-                            if "text" in item:
-                                new_content.append({"type": "text", "text": item["text"]})
-                            elif "image" in item:
-                                # 读取图片并转为 base64
-                                import base64
-                                with open(item["image"], "rb") as f:
-                                    image_data = base64.b64encode(f.read()).decode()
-                                # 检测图片格式
-                                ext = item["image"].lower().split(".")[-1]
-                                media_type = f"image/{ext}" if ext in ["png", "jpeg", "jpg", "gif", "webp"] else "image/png"
-                                new_content.append({
-                                    "type": "image",
-                                    "source": {
-                                        "type": "base64",
-                                        "media_type": media_type,
-                                        "data": image_data
-                                    }
-                                })
-                    converted.append({"role": role, "content": new_content})
-        
-        return system, converted
-    
-    def call_vlm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 120) -> str:
-        import time
-        
-        for attempt in range(max_retries):
-            try:
-                print(f"[Claude VLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
-                
-                system, converted_messages = self._convert_messages(messages)
-                response = self.client.messages.create(
-                    model=model,
-                    max_tokens=4096,
-                    system=system,
-                    messages=converted_messages,
-                    timeout=timeout,
-                )
-                
-                print(f"[Claude VLM] ✅ 调用成功")
-                return response.content[0].text
-                
-            except Exception as e:
-                print(f"[Claude VLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 5
-                    print(f"[Claude VLM] 等待 {wait_time} 秒后重试...")
-                    time.sleep(wait_time)
-                else:
-                    raise
-    
-    def call_llm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 60) -> str:
-        import time
-        
-        for attempt in range(max_retries):
-            try:
-                print(f"[Claude LLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
-                
-                system, converted_messages = self._convert_messages(messages)
-                response = self.client.messages.create(
-                    model=model,
-                    max_tokens=4096,
-                    system=system,
-                    messages=converted_messages,
-                    timeout=timeout,
-                )
-                
-                print(f"[Claude LLM] ✅ 调用成功")
-                return response.content[0].text.strip()
-                
-            except Exception as e:
-                print(f"[Claude LLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 3
-                    print(f"[Claude LLM] 等待 {wait_time} 秒后重试...")
-                    time.sleep(wait_time)
-                else:
-                    raise
-
-
 class GeminiClient(BaseModelClient):
     """Google Gemini 客户端"""
     
@@ -492,23 +377,23 @@ class GeminiClient(BaseModelClient):
                     raise
 
 
-class DeepSeekClient(BaseModelClient):
-    """DeepSeek 客户端 (兼容 OpenAI API)"""
+class DoubaoClient(BaseModelClient):
+    """字节跳动豆包客户端（兼容 OpenAI API）"""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, base_url: str = "https://ark.cn-beijing.volces.com/api/v3"):
         super().__init__(api_key)
         try:
             from openai import OpenAI
-            # DeepSeek 使用兼容 OpenAI 的 API
+            # 豆包使用兼容 OpenAI 的 API
             self.client = OpenAI(
                 api_key=api_key,
-                base_url="https://api.deepseek.com"
+                base_url=base_url
             )
         except ImportError:
             raise RuntimeError("请安装 openai 库: pip install openai")
     
     def _convert_messages(self, messages: List[dict]) -> List[dict]:
-        """转换消息格式为 DeepSeek 格式"""
+        """转换消息格式为豆包格式"""
         converted = []
         for msg in messages:
             role = msg.get("role")
@@ -541,7 +426,7 @@ class DeepSeekClient(BaseModelClient):
         
         for attempt in range(max_retries):
             try:
-                print(f"[DeepSeek VLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
+                print(f"[Doubao VLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
                 
                 converted_messages = self._convert_messages(messages)
                 response = self.client.chat.completions.create(
@@ -550,14 +435,14 @@ class DeepSeekClient(BaseModelClient):
                     timeout=timeout,
                 )
                 
-                print(f"[DeepSeek VLM] ✅ 调用成功")
+                print(f"[Doubao VLM] ✅ 调用成功")
                 return response.choices[0].message.content
                 
             except Exception as e:
-                print(f"[DeepSeek VLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
+                print(f"[Doubao VLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
                 if attempt < max_retries - 1:
                     wait_time = (attempt + 1) * 5
-                    print(f"[DeepSeek VLM] 等待 {wait_time} 秒后重试...")
+                    print(f"[Doubao VLM] 等待 {wait_time} 秒后重试...")
                     time.sleep(wait_time)
                 else:
                     raise
@@ -567,7 +452,7 @@ class DeepSeekClient(BaseModelClient):
         
         for attempt in range(max_retries):
             try:
-                print(f"[DeepSeek LLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
+                print(f"[Doubao LLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
                 
                 converted_messages = self._convert_messages(messages)
                 response = self.client.chat.completions.create(
@@ -576,107 +461,14 @@ class DeepSeekClient(BaseModelClient):
                     timeout=timeout,
                 )
                 
-                print(f"[DeepSeek LLM] ✅ 调用成功")
+                print(f"[Doubao LLM] ✅ 调用成功")
                 return response.choices[0].message.content.strip()
                 
             except Exception as e:
-                print(f"[DeepSeek LLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
+                print(f"[Doubao LLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
                 if attempt < max_retries - 1:
                     wait_time = (attempt + 1) * 3
-                    print(f"[DeepSeek LLM] 等待 {wait_time} 秒后重试...")
-                    time.sleep(wait_time)
-                else:
-                    raise
-
-
-class GLMClient(BaseModelClient):
-    """智谱 GLM 客户端"""
-    
-    def __init__(self, api_key: str):
-        super().__init__(api_key)
-        try:
-            from zhipuai import ZhipuAI
-            self.client = ZhipuAI(api_key=api_key)
-        except ImportError:
-            raise RuntimeError("请安装 zhipuai 库: pip install zhipuai")
-    
-    def _convert_messages(self, messages: List[dict]) -> List[dict]:
-        """转换消息格式为 GLM 格式"""
-        converted = []
-        for msg in messages:
-            role = msg.get("role")
-            content = msg.get("content")
-            
-            if isinstance(content, str):
-                converted.append({"role": role, "content": content})
-            elif isinstance(content, list):
-                # 处理多模态内容
-                new_content = []
-                for item in content:
-                    if isinstance(item, dict):
-                        if "text" in item:
-                            new_content.append({"type": "text", "text": item["text"]})
-                        elif "image" in item:
-                            # 读取图片并转为 base64
-                            import base64
-                            with open(item["image"], "rb") as f:
-                                image_data = base64.b64encode(f.read()).decode()
-                            new_content.append({
-                                "type": "image_url",
-                                "image_url": {"url": f"data:image/png;base64,{image_data}"}
-                            })
-                converted.append({"role": role, "content": new_content})
-        
-        return converted
-    
-    def call_vlm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 120) -> str:
-        import time
-        
-        for attempt in range(max_retries):
-            try:
-                print(f"[GLM VLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
-                
-                converted_messages = self._convert_messages(messages)
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=converted_messages,
-                    timeout=timeout,
-                )
-                
-                print(f"[GLM VLM] ✅ 调用成功")
-                return response.choices[0].message.content
-                
-            except Exception as e:
-                print(f"[GLM VLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 5
-                    print(f"[GLM VLM] 等待 {wait_time} 秒后重试...")
-                    time.sleep(wait_time)
-                else:
-                    raise
-    
-    def call_llm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 60) -> str:
-        import time
-        
-        for attempt in range(max_retries):
-            try:
-                print(f"[GLM LLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
-                
-                converted_messages = self._convert_messages(messages)
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=converted_messages,
-                    timeout=timeout,
-                )
-                
-                print(f"[GLM LLM] ✅ 调用成功")
-                return response.choices[0].message.content.strip()
-                
-            except Exception as e:
-                print(f"[GLM LLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 3
-                    print(f"[GLM LLM] 等待 {wait_time} 秒后重试...")
+                    print(f"[Doubao LLM] 等待 {wait_time} 秒后重试...")
                     time.sleep(wait_time)
                 else:
                     raise
@@ -688,9 +480,9 @@ def create_model_client(provider: str, api_key: str, **kwargs) -> BaseModelClien
     创建模型客户端
     
     Args:
-        provider: 提供商名称 (qwen, openai, claude, gemini, deepseek, glm)
+        provider: 提供商名称 (qwen, openai, gemini, doubao)
         api_key: API密钥
-        **kwargs: 额外参数 (如 OpenAI 的 base_url)
+        **kwargs: 额外参数 (如 OpenAI/Doubao 的 base_url)
     
     Returns:
         BaseModelClient: 模型客户端实例
@@ -701,13 +493,9 @@ def create_model_client(provider: str, api_key: str, **kwargs) -> BaseModelClien
         return QwenClient(api_key)
     elif provider == ModelProvider.OPENAI:
         return OpenAIClient(api_key, kwargs.get("base_url"))
-    elif provider == ModelProvider.CLAUDE:
-        return ClaudeClient(api_key)
     elif provider == ModelProvider.GEMINI:
         return GeminiClient(api_key)
-    elif provider == ModelProvider.DEEPSEEK:
-        return DeepSeekClient(api_key)
-    elif provider == ModelProvider.GLM:
-        return GLMClient(api_key)
+    elif provider == ModelProvider.DOUBAO:
+        return DoubaoClient(api_key, kwargs.get("base_url", "https://ark.cn-beijing.volces.com/api/v3"))
     else:
         raise ValueError(f"不支持的模型提供商: {provider}")

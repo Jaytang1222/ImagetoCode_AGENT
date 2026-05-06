@@ -297,7 +297,7 @@ STRUCTURED_AGENT4_INPUT部分必须是有效的JSON格式：
 def agent3_code_evaluation_report(
     echarts_inline_js: str,
     chart_evaluation_report: str,
-    llm_model: str = "qwen-plus",
+    llm_model: Optional[str] = None,
 ) -> str:
     user = (
         "【结构化视觉差异报告（来自 Agent2）】\n"

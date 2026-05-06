@@ -133,7 +133,7 @@ SYSTEM_AGENT2 = """# 智能体 2：视觉评估智能体
 def agent2_chart_evaluation_report(
     original_image_path: str,
     generated_image_path: str,
-    vlm_model: str = "qwen3.5-plus",
+    vlm_model: Optional[str] = None,
 ) -> str:
     messages = [
         {"role": "system", "content": SYSTEM_AGENT2},

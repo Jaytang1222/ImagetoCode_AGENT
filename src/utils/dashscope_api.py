@@ -68,14 +68,11 @@ def call_vlm(
     如果配置了统一 API，将自动路由到对应的模型提供商。
     否则使用原有的 DashScope 实现。
     """
-    # 如果启用了统一 API，使用新的实现
+    # 如果启用了统一 API，使用新的实现（所有提供商包括 qwen）
     if USE_UNIFIED_API:
-        provider = os.getenv("MODEL_PROVIDER", "qwen").lower()
-        if provider != "qwen":
-            # 使用统一 API
-            return unified_call_vlm(messages, model, max_retries, timeout)
+        return unified_call_vlm(messages, model, max_retries, timeout)
     
-    # 否则使用原有的 DashScope 实现
+    # 否则使用原有的 DashScope 实现（向后兼容）
     import time
     import socket
     import ssl
@@ -133,7 +130,7 @@ def call_vlm(
             else:
                 raise RuntimeError(f"VLM 调用失败: 超时，已重试 {max_retries} 次")
         
-        except (requests.exceptions.SSLError, ssl.SSLError) as ssl_err:
+        except ssl.SSLError as ssl_err:
             print(f"[API] ⚠️ SSL错误: {ssl_err}")
             if attempt < max_retries - 1:
                 # SSL错误时等待更长时间
@@ -169,14 +166,11 @@ def call_llm(
     如果配置了统一 API，将自动路由到对应的模型提供商。
     否则使用原有的 DashScope 实现。
     """
-    # 如果启用了统一 API，使用新的实现
+    # 如果启用了统一 API，使用新的实现（所有提供商包括 qwen）
     if USE_UNIFIED_API:
-        provider = os.getenv("MODEL_PROVIDER", "qwen").lower()
-        if provider != "qwen":
-            # 使用统一 API
-            return unified_call_llm(messages, model, max_retries, timeout)
+        return unified_call_llm(messages, model, max_retries, timeout)
     
-    # 否则使用原有的 DashScope 实现
+    # 否则使用原有的 DashScope 实现（向后兼容）
     import time
     import socket
     import ssl
@@ -221,7 +215,7 @@ def call_llm(
             else:
                 raise RuntimeError(f"LLM 调用失败: 超时，已重试 {max_retries} 次")
         
-        except (requests.exceptions.SSLError, ssl.SSLError) as ssl_err:
+        except ssl.SSLError as ssl_err:
             print(f"[API] ⚠️ SSL错误: {ssl_err}")
             if attempt < max_retries - 1:
                 wait_time = (attempt + 1) * 5

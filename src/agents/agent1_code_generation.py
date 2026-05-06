@@ -65,6 +65,11 @@ SYSTEM_AGENT1 = """# 智能体 1：代码生成智能体
 - ✗ 使用 `plt.figure()` 和 `plt.subplot()` - 必须使用 `fig, ax = plt.subplots()`
 - ✗ 图例位置使用 'best' - 使用具体位置如 'upper right', 'lower left'
 - ✗ 缺少 `plt.tight_layout()` - 这会导致标签被裁剪
+- ✗ 直方图使用 `bins[:-1]` 与 `ax.bar()` - 必须使用 `ax.hist()` 或确保 bins 和 heights 长度匹配
+- ✗ 数组形状不匹配 - 在使用 `ax.bar()` 时，x 和 height 数组必须长度相同
+- ✗ 错误解包 `np.histogram()` - `n, bins, _ = np.histogram(...)` 是错误的，`np.histogram()` 只返回 2 个值
+- ✗ 使用 `np.histogram()` 手动绘制 - 直接使用 `ax.hist()` 更简单可靠
+- ✗ 使用无效的 rcParams - 如 `plt.rcParams['font.kerning']` 等不存在的参数
 
 ## 提取协议（按优先级）
 从输入图像中提取并复现：
@@ -111,6 +116,8 @@ SYSTEM_AGENT1 = """# 智能体 1：代码生成智能体
 - 数据点数量应与原图一致（±1个点可接受）
 
 ## 精简代码模板
+
+### 折线图/散点图模板
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
@@ -137,6 +144,69 @@ ax.set_ylim(0, 40)
 ax.set_xticks(np.arange(0, 5, 1))
 ax.legend(loc='upper right', fontsize=10)
 ax.grid(True, alpha=0.3, linestyle='--')
+
+plt.tight_layout()
+plt.savefig(output_path, dpi=100, bbox_inches='tight')
+```
+
+### 直方图模板（重要：避免形状不匹配错误）
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# 方法1：使用 ax.hist()（强烈推荐 - 最简单可靠）
+data = np.array([1, 2, 2, 3, 3, 3, 4, 4, 5])
+ax.hist(data, bins=10, color='#1f77b4', edgecolor='#000000', alpha=0.7)
+
+# 注意：不要使用 np.histogram() 手动处理！
+# ✗ 错误：n, bins, _ = np.histogram(data, bins=10)  # np.histogram 只返回2个值！
+# ✗ 错误：n, bins = np.histogram(data, bins=10); ax.bar(bins[:-1], n, ...)  # 容易出错
+# ✓ 正确：直接使用 ax.hist(data, bins=10)  # 简单可靠
+
+# 方法2：如果必须使用 ax.bar()（需要确保长度匹配）
+bins = np.array([0, 10, 20, 30, 40, 50])  # 6个边界
+heights = np.array([5, 10, 15, 8, 3])     # 5个高度（比bins少1）
+bin_centers = (bins[:-1] + bins[1:]) / 2  # 计算区间中心点（5个）
+bin_width = bins[1] - bins[0]
+ax.bar(bin_centers, heights, width=bin_width, color='#1f77b4', edgecolor='#000000')
+
+# 配置
+ax.set_xlabel('数值', fontsize=12)
+ax.set_ylabel('频数', fontsize=12)
+ax.set_title('直方图', fontsize=14, fontweight='bold')
+ax.grid(True, alpha=0.3, linestyle='--')
+
+plt.tight_layout()
+plt.savefig(output_path, dpi=100, bbox_inches='tight')
+```
+
+### 柱状图模板
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+
+fig, ax = plt.subplots(figsize=(9, 6))
+
+# 数据
+categories = np.array(['A', 'B', 'C', 'D', 'E'])
+values = np.array([10, 25, 20, 35, 30])
+
+# 绘图
+ax.bar(categories, values, color='#1f77b4', edgecolor='#000000', width=0.6)
+
+# 配置
+ax.set_xlabel('类别', fontsize=12)
+ax.set_ylabel('数值', fontsize=12)
+ax.set_title('柱状图', fontsize=14, fontweight='bold')
+ax.grid(True, alpha=0.3, linestyle='--', axis='y')
 
 plt.tight_layout()
 plt.savefig(output_path, dpi=100, bbox_inches='tight')
@@ -190,7 +260,7 @@ class Agent1DispatchResult:
 def agent1_generate_code(
     input_chart_image_path: str,
     extra_feedback: Optional[str] = None,
-    vlm_model: str = "qwen3.5-plus",
+    vlm_model: Optional[str] = None,
 ) -> str:
     """
     根据输入图表生成 Matplotlib Python 代码。
@@ -221,7 +291,7 @@ def agent1_generate_code_with_render(
     input_chart_image_path: str,
     out_dir: str,
     extra_feedback: Optional[str] = None,
-    vlm_model: str = "qwen3.5-plus",
+    vlm_model: Optional[str] = None,
 ) -> Tuple[str, str]:
     """
     Agent1 简化版：仅生成代码并渲染图像，不调用其他Agent。
@@ -266,8 +336,8 @@ def agent1_generate_and_dispatch(
     input_chart_image_path: str,
     preset: Optional[Agent1Preset] = None,
     extra_feedback: Optional[str] = None,
-    vlm_model: str = "qwen3.5-plus",
-    llm_model: str = "qwen-plus",
+    vlm_model: Optional[str] = None,
+    llm_model: Optional[str] = None,
 ) -> Agent1DispatchResult:
     """
     Agent1 增强版能力：

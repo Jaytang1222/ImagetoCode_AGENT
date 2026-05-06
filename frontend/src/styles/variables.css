@@ -241,3 +241,44 @@
     --text-section-size: 56px;
   }
 }
+
+/* ========== Dark Mode Theme ========== */
+[data-theme="dark"] {
+  /* Override colors for dark mode */
+  --color-pale-gray: #1a2828;
+  --color-white: #1a2828;
+  --color-near-black: #f8faf9;
+  
+  /* Surfaces */
+  --color-surface-light: #1a2828;
+  --color-surface-elevated: #1e3535;
+  --color-surface-accent: #223a3a;
+  
+  /* Text */
+  --color-text-primary: #f8faf9;
+  --color-text-secondary: #a0b5b5;
+  
+  /* Borders */
+  --color-soft-border: #3a4545;
+  --color-mid-border: #5a6868;
+  
+  /* Keep brand colors vibrant in dark mode */
+  --color-primary-green: #a5e7a5;
+  --color-primary-blue: #addeef;
+  --color-action-blue: #5cb8d9;
+  --color-link-blue: #addeef;
+  
+  /* Adjust shadows for dark mode */
+  --shadow-subtle: rgba(0, 0, 0, 0.3) 0 2px 8px, rgba(165, 231, 165, 0.1) 0 1px 4px;
+  --shadow-medium: rgba(0, 0, 0, 0.4) 0 4px 16px, rgba(173, 222, 239, 0.15) 0 2px 8px;
+  --shadow-strong: rgba(0, 0, 0, 0.5) 0 8px 32px, rgba(165, 231, 165, 0.2) 0 4px 16px;
+}
+
+/* Smooth transition for theme changes on specific properties */
+html {
+  transition: background-color 0.3s ease;
+}
+
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}

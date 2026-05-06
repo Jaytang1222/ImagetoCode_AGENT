@@ -184,7 +184,7 @@ const scoreColorClass = computed(() => {
 .score-bar {
   width: 100%;
   height: 10px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-surface-accent);
   border-radius: var(--radius-pill);
   overflow: hidden;
   margin-bottom: var(--space-24);

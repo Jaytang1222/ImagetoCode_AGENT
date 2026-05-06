@@ -9,31 +9,13 @@
         <select v-model="localConfig.modelProvider" class="apple-select">
           <option value="qwen">阿里云通义千问 (Qwen)</option>
           <option value="openai">OpenAI GPT</option>
-          <option value="claude">Anthropic Claude</option>
           <option value="gemini">Google Gemini</option>
-          <option value="deepseek">DeepSeek</option>
-          <option value="glm">智谱 GLM</option>
+          <option value="doubao">字节跳动豆包 (Doubao)</option>
         </select>
         <p class="helper-text">选择用于图表生成和评估的AI模型</p>
       </div>
 
-      <!-- VLM 模型名称 -->
-      <AppleInput
-        v-model="localConfig.vlmModel"
-        type="text"
-        label="VLM 模型名称（可选）"
-        :placeholder="getVlmPlaceholder()"
-        helperText="多模态模型，用于图像理解。留空使用默认值"
-      />
 
-      <!-- LLM 模型名称 -->
-      <AppleInput
-        v-model="localConfig.llmModel"
-        type="text"
-        label="LLM 模型名称（可选）"
-        :placeholder="getLlmPlaceholder()"
-        helperText="文本模型，用于代码评估。留空使用默认值"
-      />
       
       <AppleInput
         v-model="localConfig.maxLoops"
@@ -87,9 +69,7 @@ const props = defineProps({
     default: () => ({
       maxLoops: 5,
       threshold: 0.75,
-      modelProvider: 'qwen',
-      vlmModel: '',
-      llmModel: ''
+      modelProvider: 'qwen'
     })
   }
 })
@@ -99,48 +79,12 @@ const emit = defineEmits(['update:config', 'save'])
 const defaultConfig = {
   maxLoops: 5,
   threshold: 0.75,
-  modelProvider: 'qwen',
-  vlmModel: '',
-  llmModel: ''
+  modelProvider: 'qwen'
 }
 
 const localConfig = ref({ ...props.config })
 
-// 模型默认值映射
-const modelDefaults = {
-  qwen: {
-    vlm: 'qwen3.5-plus',
-    llm: 'qwen-plus'
-  },
-  openai: {
-    vlm: 'gpt-4o',
-    llm: 'gpt-4o'
-  },
-  claude: {
-    vlm: 'claude-3-5-sonnet-20241022',
-    llm: 'claude-3-5-sonnet-20241022'
-  },
-  gemini: {
-    vlm: 'gemini-1.5-pro',
-    llm: 'gemini-1.5-pro'
-  },
-  deepseek: {
-    vlm: 'deepseek-chat',
-    llm: 'deepseek-chat'
-  },
-  glm: {
-    vlm: 'glm-4v',
-    llm: 'glm-4'
-  }
-}
 
-const getVlmPlaceholder = () => {
-  return modelDefaults[localConfig.value.modelProvider]?.vlm || 'qwen3.5-plus'
-}
-
-const getLlmPlaceholder = () => {
-  return modelDefaults[localConfig.value.modelProvider]?.llm || 'qwen-plus'
-}
 
 const isValid = computed(() => {
   const loops = Number(localConfig.value.maxLoops)
@@ -157,9 +101,7 @@ const handleSave = () => {
     const config = {
       maxLoops: Number(localConfig.value.maxLoops),
       threshold: Number(localConfig.value.threshold),
-      modelProvider: localConfig.value.modelProvider || 'qwen',
-      vlmModel: localConfig.value.vlmModel || null,
-      llmModel: localConfig.value.llmModel || null
+      modelProvider: localConfig.value.modelProvider || 'qwen'
     }
     emit('update:config', config)
     emit('save', config)

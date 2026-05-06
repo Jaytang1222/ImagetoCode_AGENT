@@ -124,15 +124,15 @@ class PipelineService:
                 pipeline["output_dir"],
                 pipeline["config"]["max_loops"],
                 pipeline["config"]["threshold"],
-                pipeline["config"].get("model_provider"),
-                pipeline["config"].get("vlm_model"),
-                pipeline["config"].get("llm_model")
+                pipeline["config"].get("model_provider")
             )
             
-            # 更新结果
-            pipeline["status"] = "completed" if success else "failed"
+            # 更新结果（流水线执行完成，无论验证是否通过）
+            pipeline["status"] = "completed"
             pipeline["results"] = {
-                "success": success,
+                "success": success,  # 验证是否通过
+                "validation_passed": success,  # 明确标记验证结果
+                "execution_completed": True,  # 执行是否完成
                 "code_path": code_path,
                 "image_path": image_path,
                 "summary": summary
@@ -173,15 +173,17 @@ class PipelineService:
             
             log_pipeline_event(
                 pipeline_id, 
-                "执行完成" if success else "执行失败", 
-                f"success={success}, summary={summary}"
+                "执行完成", 
+                f"validation_passed={success}, summary={summary}"
             )
             
             # 发送完成消息
             await manager.send_message(pipeline_id, "pipeline_complete", {
                 "pipeline_id": pipeline_id,
                 "success": success,
-                "message": "流水线执行完成" if success else "流水线执行失败"
+                "validation_passed": success,
+                "execution_completed": True,
+                "message": "流水线执行完成，验证" + ("通过" if success else "未通过")
             })
             
         except Exception as e:
@@ -214,17 +216,26 @@ class PipelineService:
         """停止流水线"""
         if pipeline_id in self.running_tasks:
             task = self.running_tasks[pipeline_id]
-            task.cancel()
             
             pipeline = self.pipelines[pipeline_id]
             pipeline["status"] = "stopped"
             
             log_pipeline_event(pipeline_id, "停止", "用户手动停止")
             
+            # 发送停止消息
             await manager.send_message(pipeline_id, "pipeline_stop", {
                 "pipeline_id": pipeline_id,
                 "message": "流水线已停止"
             })
+            
+            # 等待消息发送完毕
+            await asyncio.sleep(0.3)
+            
+            # 主动关闭 WebSocket 连接（优雅关闭）
+            manager.disconnect(pipeline_id)
+            
+            # 取消任务
+            task.cancel()
 
     def get_pipeline_status(self, pipeline_id: str) -> Optional[dict]:
         """获取流水线状态"""

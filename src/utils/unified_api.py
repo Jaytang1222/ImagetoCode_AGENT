@@ -18,6 +18,27 @@ except ImportError:
 from src.utils.model_providers import create_model_client, ModelProvider
 
 
+# 模型提供商默认模型配置
+MODEL_DEFAULTS = {
+    ModelProvider.QWEN: {
+        "vlm": "qwen3.5-plus",
+        "llm": "qwen-plus"
+    },
+    ModelProvider.OPENAI: {
+        "vlm": "gpt-4o",
+        "llm": "gpt-4o"
+    },
+    ModelProvider.GEMINI: {
+        "vlm": "gemini-1.5-pro",
+        "llm": "gemini-1.5-pro"
+    },
+    ModelProvider.DOUBAO: {
+        "vlm": "doubao-seed-2-0-pro-260215",
+        "llm": "doubao-seed-2-0-pro-260215"
+    }
+}
+
+
 # 全局客户端缓存
 _client_cache = {}
 
@@ -36,14 +57,10 @@ def get_model_client():
         api_key = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
     elif provider == ModelProvider.OPENAI:
         api_key = os.getenv("OPENAI_API_KEY")
-    elif provider == ModelProvider.CLAUDE:
-        api_key = os.getenv("CLAUDE_API_KEY")
     elif provider == ModelProvider.GEMINI:
         api_key = os.getenv("GEMINI_API_KEY")
-    elif provider == ModelProvider.DEEPSEEK:
-        api_key = os.getenv("DEEPSEEK_API_KEY")
-    elif provider == ModelProvider.GLM:
-        api_key = os.getenv("GLM_API_KEY")
+    elif provider == ModelProvider.DOUBAO:
+        api_key = os.getenv("DOUBAO_API_KEY")
     
     if not api_key:
         raise RuntimeError(
@@ -57,6 +74,9 @@ def get_model_client():
         base_url = os.getenv("OPENAI_BASE_URL")
         if base_url:
             kwargs["base_url"] = base_url
+    elif provider == ModelProvider.DOUBAO:
+        base_url = os.getenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+        kwargs["base_url"] = base_url
     
     client = create_model_client(provider, api_key, **kwargs)
     
@@ -77,7 +97,7 @@ def call_vlm(
     
     Args:
         messages: 消息列表
-        model: 模型名称（如果为 None，使用环境变量 DEFAULT_VLM_MODEL）
+        model: 模型名称（如果为 None，使用当前提供商的默认 VLM 模型）
         max_retries: 最大重试次数
         timeout: 超时时间（秒）
     
@@ -85,7 +105,10 @@ def call_vlm(
         str: 模型返回的文本
     """
     if model is None:
-        model = os.getenv("DEFAULT_VLM_MODEL", "qwen3.5-plus")
+        # 获取当前提供商
+        provider = os.getenv("MODEL_PROVIDER", "qwen").lower()
+        # 使用提供商的默认 VLM 模型
+        model = MODEL_DEFAULTS.get(provider, MODEL_DEFAULTS[ModelProvider.QWEN])["vlm"]
     
     client = get_model_client()
     return client.call_vlm(messages, model, max_retries, timeout)
@@ -102,7 +125,7 @@ def call_llm(
     
     Args:
         messages: 消息列表
-        model: 模型名称（如果为 None，使用环境变量 DEFAULT_LLM_MODEL）
+        model: 模型名称（如果为 None，使用当前提供商的默认 LLM 模型）
         max_retries: 最大重试次数
         timeout: 超时时间（秒）
     
@@ -110,7 +133,10 @@ def call_llm(
         str: 模型返回的文本
     """
     if model is None:
-        model = os.getenv("DEFAULT_LLM_MODEL", "qwen-plus")
+        # 获取当前提供商
+        provider = os.getenv("MODEL_PROVIDER", "qwen").lower()
+        # 使用提供商的默认 LLM 模型
+        model = MODEL_DEFAULTS.get(provider, MODEL_DEFAULTS[ModelProvider.QWEN])["llm"]
     
     client = get_model_client()
     return client.call_llm(messages, model, max_retries, timeout)
@@ -135,8 +161,11 @@ def extract_python_code(raw: str) -> str:
 def get_current_provider_info() -> dict:
     """获取当前模型提供商信息"""
     provider = os.getenv("MODEL_PROVIDER", "qwen").lower()
-    vlm_model = os.getenv("DEFAULT_VLM_MODEL", "qwen3.5-plus")
-    llm_model = os.getenv("DEFAULT_LLM_MODEL", "qwen-plus")
+    
+    # 获取默认模型
+    defaults = MODEL_DEFAULTS.get(provider, MODEL_DEFAULTS[ModelProvider.QWEN])
+    vlm_model = os.getenv("DEFAULT_VLM_MODEL", defaults["vlm"])
+    llm_model = os.getenv("DEFAULT_LLM_MODEL", defaults["llm"])
     
     return {
         "provider": provider,

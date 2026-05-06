@@ -19,16 +19,9 @@ async def start_pipeline(config: PipelineConfig):
         # 创建流水线配置
         pipeline_config = {
             "max_loops": config.max_loops,
-            "threshold": config.threshold
+            "threshold": config.threshold,
+            "model_provider": config.model_provider
         }
-        
-        # 添加模型配置（如果提供）
-        if config.model_provider:
-            pipeline_config["model_provider"] = config.model_provider
-        if config.vlm_model:
-            pipeline_config["vlm_model"] = config.vlm_model
-        if config.llm_model:
-            pipeline_config["llm_model"] = config.llm_model
         
         # 创建流水线
         pipeline_id = pipeline_service.create_pipeline(

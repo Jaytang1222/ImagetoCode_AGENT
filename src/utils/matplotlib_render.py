@@ -19,7 +19,7 @@ def _clean_incompatible_params(code: str) -> str:
     1. legend() 不支持 fontfamily 参数（某些matplotlib版本）
     2. 其他可能的不兼容参数
     
-    解决方案：移除这些参数，保留其他参数
+    解决方案：移除这些参数
     """
     # 移除 legend() 中的 fontfamily 参数
     # 处理多种情况：
@@ -51,6 +51,137 @@ def _clean_incompatible_params(code: str) -> str:
     return code
 
 
+def _fix_histogram_shape_mismatch(code: str) -> str:
+    """
+    修复直方图中常见的形状不匹配问题。
+    
+    问题：ax.bar(bins[:-1], heights, ...) 中 bins[:-1] 和 heights 长度不匹配
+    
+    解决方案：
+    1. 检测 ax.bar() 调用中使用 bins[:-1] 的情况
+    2. 将其替换为使用区间中心点的正确方法
+    3. 检测并修复 width 参数
+    """
+    lines = code.split('\n')
+    fixed_lines = []
+    bin_centers_added = False
+    
+    for i, line in enumerate(lines):
+        # 检测 ax.bar() 调用中使用 bins[:-1] 的情况
+        if 'ax.bar' in line and 'bins[:-1]' in line:
+            # 提取变量名
+            # 模式：ax.bar(bins[:-1], heights_var, ...)
+            match = re.search(r'ax\.bar\s*\(\s*bins\s*\[\s*:-1\s*\]\s*,\s*(\w+)', line)
+            if match:
+                heights_var = match.group(1)
+                
+                # 如果还没有添加 bin_centers 计算，在这行之前添加
+                if not bin_centers_added:
+                    indent = len(line) - len(line.lstrip())
+                    indent_str = ' ' * indent
+                    
+                    # 添加 bin_centers 和 bin_width 计算
+                    fixed_lines.append(f"{indent_str}# 计算区间中心点和宽度（避免形状不匹配）")
+                    fixed_lines.append(f"{indent_str}bin_centers = (bins[:-1] + bins[1:]) / 2")
+                    fixed_lines.append(f"{indent_str}bin_width = bins[1] - bins[0] if len(bins) > 1 else 1")
+                    bin_centers_added = True
+                
+                # 替换 bins[:-1] 为 bin_centers
+                fixed_line = line.replace('bins[:-1]', 'bin_centers')
+                
+                # 如果 width 参数使用了固定值，替换为 bin_width
+                # 模式：width=数字 或 width = 数字
+                if re.search(r'width\s*=\s*\d+', fixed_line):
+                    fixed_line = re.sub(r'width\s*=\s*\d+', 'width=bin_width', fixed_line)
+                elif 'width' not in fixed_line:
+                    # 如果没有 width 参数，添加它
+                    # 在最后一个参数后、右括号前添加
+                    fixed_line = fixed_line.rstrip()
+                    if fixed_line.endswith(')'):
+                        fixed_line = fixed_line[:-1] + ', width=bin_width)'
+                    elif fixed_line.endswith(','):
+                        fixed_line = fixed_line + ' width=bin_width'
+                
+                fixed_lines.append(fixed_line)
+                continue
+        
+        fixed_lines.append(line)
+    
+    return '\n'.join(fixed_lines)
+
+
+def _validate_and_fix_code(code: str) -> Tuple[str, list]:
+    """
+    验证代码并自动修复常见问题。
+    
+    返回：
+        (修复后的代码, 修复说明列表)
+    """
+    fixes_applied = []
+    fixed_code = code
+    
+    # 修复1：检查并修复 bins[:-1] 问题
+    if 'bins[:-1]' in fixed_code and 'ax.bar' in fixed_code:
+        fixed_code = _fix_histogram_shape_mismatch(fixed_code)
+        if fixed_code != code:
+            fixes_applied.append("修复直方图 bins[:-1] 形状不匹配问题")
+    
+    # 修复2：检查并修复 np.histogram 错误解包
+    if re.search(r'\w+\s*,\s*\w+\s*,\s*_\s*=\s*np\.histogram\s*\(', fixed_code):
+        fixed_code = re.sub(
+            r'(\w+)\s*,\s*(\w+)\s*,\s*_\s*=\s*np\.histogram\s*\(',
+            r'\1, \2 = np.histogram(',
+            fixed_code
+        )
+        fixes_applied.append("修复 np.histogram() 错误解包（只返回2个值）")
+    
+    # 修复3：移除无效的 rcParams 参数
+    invalid_rcparams = [
+        'font.kerning',
+        'text.latex.unicode',
+        'savefig.frameon',
+    ]
+    for param in invalid_rcparams:
+        pattern = rf"plt\.rcParams\s*\[\s*['\"]" + re.escape(param) + rf"['\"]\s*\]\s*=\s*[^\n]+"
+        if re.search(pattern, fixed_code):
+            fixed_code = re.sub(
+                pattern,
+                f"# plt.rcParams['{param}'] = ...  # 已移除：无效参数",
+                fixed_code
+            )
+            fixes_applied.append(f"移除无效的 rcParams 参数: {param}")
+    
+    # 修复4：检查是否缺少必要的 import
+    if 'plt.' in fixed_code and 'import matplotlib.pyplot' not in fixed_code:
+        fixed_code = 'import matplotlib.pyplot as plt\n' + fixed_code
+        fixes_applied.append("添加缺失的 matplotlib.pyplot 导入")
+    
+    if 'np.' in fixed_code and 'import numpy' not in fixed_code:
+        # 在第一个 import 后添加
+        lines = fixed_code.split('\n')
+        for i, line in enumerate(lines):
+            if line.startswith('import '):
+                lines.insert(i + 1, 'import numpy as np')
+                break
+        else:
+            lines.insert(0, 'import numpy as np')
+        fixed_code = '\n'.join(lines)
+        fixes_applied.append("添加缺失的 numpy 导入")
+    
+    # 修复5：检查是否有 plt.show()（应该移除）
+    if 'plt.show()' in fixed_code:
+        fixed_code = fixed_code.replace('plt.show()', '# plt.show()  # 已注释：非交互环境')
+        fixes_applied.append("注释掉 plt.show() 调用")
+    
+    # 修复6：检查是否缺少 savefig
+    if 'savefig' not in fixed_code.lower():
+        # 在代码末尾添加 savefig
+        fixed_code = fixed_code.rstrip() + '\n\nplt.savefig(output_path, dpi=100, bbox_inches=\'tight\')\n'
+        fixes_applied.append("添加缺失的 plt.savefig() 调用")
+    
+    return fixed_code, fixes_applied
+
+
 def render_matplotlib_code_to_png(
     python_code: str,
     out_png: str,
@@ -74,6 +205,15 @@ def render_matplotlib_code_to_png(
         2. 不要包含 plt.show() 调用
         3. output_path 变量会由本函数注入
     """
+    # 验证并自动修复代码中的常见问题
+    python_code, fixes_applied = _validate_and_fix_code(python_code)
+    
+    # 如果应用了修复，记录日志（可选）
+    if fixes_applied:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"自动修复了 {len(fixes_applied)} 个问题: {', '.join(fixes_applied)}")
+    
     # 清理代码中的不兼容参数
     python_code = _clean_incompatible_params(python_code)
     

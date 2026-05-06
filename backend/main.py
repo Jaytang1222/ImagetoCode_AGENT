@@ -24,6 +24,24 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS配置（必须在其他中间件之前注册）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:3000"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # 请求日志中间件
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -32,22 +50,6 @@ async def log_requests(request: Request, call_next):
     duration = time.time() - start_time
     log_request(request.method, request.url.path, response.status_code, duration)
     return response
-
-# CORS配置
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:3000"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # 挂载静态文件目录
 os.makedirs("storage/uploads", exist_ok=True)
@@ -71,7 +73,10 @@ async def websocket_endpoint(websocket: WebSocket, pipeline_id: str):
             # 保持连接
             await websocket.receive_text()
     except Exception as e:
-        app_logger.error(f"WebSocket错误 [{pipeline_id}]: {e}")
+        # 忽略正常的客户端断开连接（错误码 1005, 1000, 1001）
+        error_code = getattr(e, 'code', None)
+        if error_code not in [1000, 1001, 1005]:
+            app_logger.error(f"WebSocket错误 [{pipeline_id}]: {e}")
     finally:
         manager.disconnect(pipeline_id)
 
@@ -104,4 +109,4 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

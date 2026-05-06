@@ -1,61 +1,81 @@
 # 多智能体图表复现系统
 
-基于阿里云 DashScope API 的多智能体流水线，从参考图表自动生成 Matplotlib 代码，通过多轮迭代优化实现高质量图表复现。支持命令行和 Web 界面两种使用方式。
+基于多模态大模型的智能图表复现系统，通过多智能体协作自动生成高质量的 Matplotlib 代码。
 
-## 系统特性
+## 核心特性
 
-- **多智能体协作**：Agent1（代码生成）→ Agent2（视觉评估）→ Agent3（代码分析）→ Agent4（反馈修订）
-- **多维验证器**：融合颜色、文本、结构一致性和 VLM 感知的综合评分系统
-- **Web 可视化界面**：实时查看流水线进度、历史记录和对比结果
-- **命令行工具**：支持批量处理和自动化集成
+- 多智能体协作流水线：代码生成 → 视觉评估 → 代码分析 → 反馈修订
+- 多维度验证系统：颜色、文本、结构一致性和视觉感知综合评分
+- 多模型支持：通义千问、OpenAI GPT、Google Gemini、字节豆包
+- Web 可视化界面：实时查看流水线进度和对比结果
+- 命令行工具：支持批量处理和自动化集成
 
-## 快速开始
+## 快速部署
 
 ### 环境要求
 
 - Python 3.9+
-- Node.js 16+（仅 Web 界面需要）
-- 阿里云 DashScope API Key
+- Node.js 16+（Web 界面需要）
 - Tesseract OCR
+- 至少一个大模型 API Key
 
-### 安装步骤
+### 1. 克隆项目
 
-#### 1. 安装 Python 依赖
+```bash
+git clone <repository-url>
+cd <project-directory>
+```
+
+### 2. 安装 Python 依赖
 
 ```bash
 # 安装核心依赖
 pip install -r requirements.txt
 
-# 安装后端依赖（仅 Web 界面需要）
+# 安装后端依赖（Web 界面需要）
 pip install -r backend/requirements.txt
 ```
 
-#### 2. 安装 Tesseract OCR
+### 3. 安装 Tesseract OCR
 
-下载并安装 [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki)，记录安装路径备用。
+**Windows**:
+- 下载安装包：https://github.com/UB-Mannheim/tesseract/wiki
+- 记录安装路径（如 `C:\Program Files\Tesseract-OCR\tesseract.exe`）
 
-#### 3. 配置环境变量
+**Linux**:
+```bash
+sudo apt-get install tesseract-ocr
+```
+
+**macOS**:
+```bash
+brew install tesseract
+```
+
+### 4. 配置环境变量
 
 在项目根目录创建 `.env` 文件：
 
 ```env
-DASHSCOPE_API_KEY=your_api_key_here
-TESSERACT_CMD=your_tesseract_path_here
+# 选择模型提供商 (qwen, openai, gemini, doubao)
+MODEL_PROVIDER=qwen
+
+# 配置对应的 API Key（至少配置一个）
+QWEN_API_KEY=your_qwen_api_key
+# OPENAI_API_KEY=your_openai_api_key
+# GEMINI_API_KEY=your_gemini_api_key
+# DOUBAO_API_KEY=your_doubao_api_key
+
+# Tesseract 路径
+TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe  # Windows
+# TESSERACT_CMD=/usr/bin/tesseract  # Linux/macOS
+
+# 服务器配置（可选）
+SERVER_HOST=localhost
+SERVER_PORT=8001
 ```
 
-**Windows 示例**：
-```env
-DASHSCOPE_API_KEY=sk-xxxxxxxxxxxxxxxx
-TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
-```
-
-**Linux/Mac 示例**：
-```env
-DASHSCOPE_API_KEY=sk-xxxxxxxxxxxxxxxx
-TESSERACT_CMD=/usr/bin/tesseract
-```
-
-#### 4. 安装前端依赖（仅 Web 界面需要）
+### 5. 安装前端依赖（Web 界面）
 
 ```bash
 cd frontend
@@ -65,144 +85,117 @@ cd ..
 
 ## 使用方式
 
-### 方式一：命令行工具
+### 方式一：Web 界面（推荐）
 
-适合批量处理和自动化集成。
-
-```bash
-python scripts/cli.py -i data/test.png -o storage/outputs --max-loops 5 --threshold 0.75
-```
-
-**命令行参数**：
-
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `-i` / `--input` | 输入参考图路径 | `input.png` |
-| `-o` / `--out` | 输出目录 | `outputs` |
-| `--max-loops` | 最大迭代轮数 | `5` |
-| `--threshold` | 验证通过阈值（0~1） | `0.75` |
-
-**输出文件**：
-- `current_matplotlib.py`：生成的 Matplotlib 代码
-- `generated_chart.png`：渲染截图
-- `report_agent2_*.txt`：视觉评估报告
-- `report_agent3_*.txt`：代码分析报告
-- `validator_round*.txt`：验证结果
-
-### 方式二：Web 界面
-
-提供可视化操作界面，实时查看流水线进度。
-
-#### 启动后端服务
+启动服务：
 
 ```bash
 python scripts/start_service.py
 ```
 
-后端服务将在 `http://localhost:8000` 启动，同时前端界面将在 `http://localhost:5173` 启动。
+服务启动后：
+- 后端 API：http://localhost:8001
+- 前端界面：http://localhost:5174
+- API 文档：http://localhost:8001/docs
 
-API 文档访问 `http://localhost:8000/docs`。
-
-#### 使用 Web 界面
-
-1. 打开浏览器访问 `http://localhost:5173`
+使用步骤：
+1. 打开浏览器访问前端地址
 2. 上传参考图表图片
-3. 配置流水线参数（最大轮数、阈值等）
-4. 点击"开始生成"启动流水线
-5. 实时查看各 Agent 执行状态和进度
-6. 查看生成结果和对比效果
-7. 下载生成的代码和图表
+3. 配置参数（最大迭代轮数、验证阈值）
+4. 启动流水线并实时查看进度
+5. 查看结果对比和下载生成的代码
 
-## 工作流程
+### 方式二：命令行工具
 
-```
-参考图 → Agent1(生成代码) → 渲染截图 → Agent2(视觉评估) 
-       → Agent3(代码分析) → Agent4(修订代码) → 多维验证器
-       → 未通过则进入下一轮迭代（最多 max_loops 轮）
+适合批量处理和自动化场景：
+
+```bash
+python scripts/cli.py -i input.png -o outputs --max-loops 5 --threshold 0.75
 ```
 
-## 多维验证器
+参数说明：
+- `-i, --input`：输入参考图路径
+- `-o, --out`：输出目录
+- `--max-loops`：最大迭代轮数（默认 5）
+- `--threshold`：验证通过阈值 0-1（默认 0.75）
 
-融合四个维度评估图表一致性：
+输出文件：
+- `current_matplotlib.py`：生成的代码
+- `generated_chart.png`：渲染结果
+- `report_agent2_*.txt`：视觉评估报告
+- `report_agent3_*.txt`：代码分析报告
+- `validator_round*.json`：验证结果
 
-1. **颜色一致性**：RGB 直方图 + 网格色块匹配 + HSV 距离
-2. **文本一致性**：OCR + BLEU 评分 + 布局偏差
-3. **结构一致性**：SSIM + 空间拓扑关系
-4. **VLM 感知**：语义和整体观感补充
+## 工作原理
 
-支持图表类型自适应，动态调整权重和阈值。
+```
+参考图 → Agent1(代码生成) → 渲染 → Agent2(视觉评估)
+       → Agent3(代码分析) → Agent4(反馈修订) → 多维验证
+       → 未通过则迭代（最多 max_loops 轮）
+```
+
+多维验证器融合四个维度：
+1. 颜色一致性：RGB 直方图和色块匹配
+2. 文本一致性：OCR + BLEU 评分
+3. 结构一致性：SSIM + 空间拓扑
+4. VLM 感知：语义和整体观感
 
 ## 项目结构
 
 ```
 .
-├── src/                     # 核心源代码
-│   ├── agents/              # 四个智能体实现
-│   │   ├── agent1_code_generation.py
-│   │   ├── agent2_visual_judgment.py
-│   │   ├── agent3_code_evaluation.py
-│   │   ├── agent4_feedback_revision.py
-│   │   └── pipeline.py      # 流水线编排
-│   ├── validators/          # 多维验证器
-│   │   ├── color_consistency_validator.py
-│   │   ├── text_consistency_validator.py
-│   │   ├── structural_consistency_validator.py
-│   │   └── multidim_validator.py
-│   └── utils/               # 工具函数
-│       ├── dashscope_api.py
-│       └── matplotlib_render.py
-├── backend/                 # FastAPI 后端服务
-│   ├── api/                 # API 路由
-│   ├── services/            # 业务逻辑
-│   ├── websocket/           # WebSocket 管理
-│   └── main.py              # 后端入口
-├── frontend/                # Vue 3 前端界面
-│   ├── src/
-│   │   ├── components/      # UI 组件
-│   │   ├── services/        # API 服务
-│   │   └── stores/          # 状态管理
-│   └── package.json
-├── scripts/                 # 脚本工具
-│   ├── start_service.py     # 启动服务
-│   ├── restart_service.py   # 重启服务
-│   └── cli.py               # 命令行工具
-├── storage/                 # 运行时存储
-│   ├── uploads/             # 上传文件
-│   └── outputs/             # 输出结果
-├── logs/                    # 日志文件
-├── data/                    # 测试数据
-├── requirements.txt         # Python 依赖
-└── .env                     # 环境变量配置
+├── src/                    # 核心源代码
+│   ├── agents/             # 四个智能体
+│   ├── validators/         # 多维验证器
+│   └── utils/              # 工具函数
+├── backend/                # FastAPI 后端
+│   ├── api/                # API 路由
+│   ├── services/           # 业务逻辑
+│   └── websocket/          # WebSocket 管理
+├── frontend/               # Vue 3 前端
+│   └── src/
+│       ├── components/     # UI 组件
+│       ├── services/       # API 服务
+│       └── stores/         # 状态管理
+├── scripts/                # 脚本工具
+│   ├── start_service.py    # 启动服务
+│   └── cli.py              # 命令行工具
+├── storage/                # 运行时存储
+│   ├── uploads/            # 上传文件
+│   └── outputs/            # 输出结果
+└── docs/                   # 文档
 ```
 
 ## 常见问题
 
-### 1. Tesseract OCR 找不到
+**Tesseract 找不到**
+- 确保已安装并在 `.env` 中配置正确路径
 
-确保已正确安装 Tesseract 并在 `.env` 文件中配置了正确的路径。
+**API Key 无效**
+- 检查 `.env` 中的配置是否正确
+- 确认 API Key 有足够配额
 
-### 2. API Key 无效
+**前端无法连接后端**
+- 确认后端服务已启动（http://localhost:8001/health）
+- 检查防火墙设置
 
-检查 `.env` 文件中的 `DASHSCOPE_API_KEY` 是否正确，确保有足够的配额。
-
-### 3. 前端无法连接后端
-
-确保后端服务已启动（`http://localhost:8000`），检查防火墙设置。
-
-### 4. 生成的图表不准确
-
-尝试增加 `--max-loops` 参数值，或降低 `--threshold` 阈值。
+**生成结果不理想**
+- 增加 `max_loops` 参数
+- 降低 `threshold` 阈值
+- 尝试切换不同的模型提供商
 
 ## 技术栈
 
-**后端**：
-- FastAPI - Web 框架
-- DashScope - 阿里云多模态 AI 服务
-- Matplotlib - 图表渲染
-- Pytesseract - OCR 文本识别
+**后端**: FastAPI, Matplotlib, Pytesseract  
+**前端**: Vue 3, Vite, Pinia, Chart.js  
+**AI**: 通义千问/OpenAI/Gemini/豆包
 
-**前端**：
-- Vue 3 - 前端框架
-- Vite - 构建工具
-- Pinia - 状态管理
-- WebSocket - 实时通信
+## 更多文档
+
+- [API 文档](docs/API.md) - 后端 API 接口说明
+- [架构设计](docs/ARCHITECTURE.md) - 系统架构和设计思路
+- [开发指南](docs/DEVELOPMENT.md) - 开发环境配置和贡献指南
+
+## 许可证
+
+MIT License

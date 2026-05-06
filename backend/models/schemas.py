@@ -13,12 +13,12 @@ class UploadResponse(BaseModel):
 
 # 流水线配置
 class PipelineConfig(BaseModel):
+    model_config = {"protected_namespaces": ()}  # 允许 model_ 前缀
+    
     image_path: str
     max_loops: int = Field(default=5, ge=1, le=10)
     threshold: float = Field(default=0.75, ge=0, le=1)
-    model_provider: Optional[str] = Field(default=None, description="模型提供商 (qwen, openai, claude, gemini, deepseek, glm)")
-    vlm_model: Optional[str] = Field(default=None, description="VLM 模型名称")
-    llm_model: Optional[str] = Field(default=None, description="LLM 模型名称")
+    model_provider: Optional[str] = Field(default="qwen", description="模型提供商 (qwen, openai, claude, gemini, deepseek, glm)")
 
 # 流水线启动响应
 class PipelineStartResponse(BaseModel):

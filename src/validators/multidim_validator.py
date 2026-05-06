@@ -60,7 +60,7 @@ def _resolve_chart_policy(
     return dynamic_threshold, p["weights"]
 
 
-def _infer_chart_type_vlm(original_image_path: str, vlm_model: str) -> str:
+def _infer_chart_type_vlm(original_image_path: str, vlm_model: Optional[str] = None) -> str:
     """
     识别图表类型，用于动态权重与阈值。
     仅返回：line/bar/scatter/pie/radar/heatmap/unknown
@@ -89,7 +89,7 @@ def multidimensional_validate(
     original_image_path: str,
     generated_image_path: str,
     threshold: float = 0.75,
-    vlm_model: str = "qwen3.5-plus",
+    vlm_model: Optional[str] = None,
     chart_type: str = "auto",
     chart_report: str = "",
     code_report: str = "",

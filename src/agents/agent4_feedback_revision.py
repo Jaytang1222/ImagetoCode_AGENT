@@ -95,7 +95,7 @@ SYSTEM_AGENT4 = """# 智能体 4：代码修订智能体
 ```python
 # 示例：查找 color='blue'
 import re
-pattern = r"color\s*=\s*['\"]blue['\"]"
+pattern = r"color\\s*=\\s*['\"]blue['\"]"
 matches = re.finditer(pattern, code)
 ```
 
@@ -237,7 +237,7 @@ import json
 import re
 
 # 尝试提取JSON块
-json_match = re.search(r'```json\s*(.*?)\s*```', agent3_report, re.DOTALL)
+json_match = re.search(r'```json\\s*(.*?)\\s*```', agent3_report, re.DOTALL)
 if json_match:
     try:
         structured_input = json.loads(json_match.group(1))
@@ -267,14 +267,115 @@ if json_match:
 如果修复要求添加新的配置（如ax.set_xlim），在合适的位置插入（通常在绘图后、图例前）。
 
 ### 情况4：中文字体
-如果修复涉及中文文本，确保中文字体配置存在。"""
+如果修复涉及中文文本，确保中文字体配置存在。
+
+### 情况5：直方图形状不匹配错误（关键修复）
+如果遇到 "shape mismatch" 或 "cannot be broadcast" 错误，通常是直方图代码问题：
+
+**问题模式：**
+```python
+# 错误：bins[:-1] 长度为 n-1，但 heights 长度为 n
+bins = np.array([0, 10, 20, 30, 40, 50])  # 6个元素
+heights = np.array([5, 10, 15, 8, 3, 2])  # 6个元素
+ax.bar(bins[:-1], heights, width=10)  # bins[:-1] 只有5个元素！
+```
+
+**修复方案（按优先级）：**
+
+1. **方案A：使用 ax.hist()（最推荐）**
+```python
+# 如果有原始数据，直接使用 hist()
+data = np.array([...])  # 原始数据点
+ax.hist(data, bins=10, color='#1f77b4', edgecolor='#000000', alpha=0.7)
+```
+
+2. **方案B：计算区间中心点（如果必须用 bar()）**
+```python
+bins = np.array([0, 10, 20, 30, 40, 50])  # 6个边界
+heights = np.array([5, 10, 15, 8, 3])     # 5个高度（必须比bins少1）
+bin_centers = (bins[:-1] + bins[1:]) / 2  # 计算中心点：5个
+bin_width = bins[1] - bins[0]
+ax.bar(bin_centers, heights, width=bin_width, color='#1f77b4', edgecolor='#000000')
+```
+
+3. **方案C：调整数组长度（最后手段）**
+```python
+# 如果 heights 比 bins[:-1] 多一个元素，移除最后一个
+if len(heights) == len(bins):
+    heights = heights[:-1]
+# 或者如果 bins 比 heights 少一个元素，添加一个边界
+if len(bins) == len(heights):
+    bins = np.append(bins, bins[-1] + (bins[-1] - bins[-2]))
+```
+
+**检测规则：**
+- 如果代码中有 `bins[:-1]` 和 `ax.bar()`，检查 bins 和 heights 的长度关系
+- 如果错误信息包含 "shape mismatch" 和 "bar"，应用上述修复
+- 优先使用方案A（ax.hist），其次方案B（bin_centers）
+
+### 情况6：np.histogram 解包错误（关键修复）
+如果遇到 "not enough values to unpack (expected 3, got 2)" 错误：
+
+**问题模式：**
+```python
+# 错误：np.histogram() 只返回 2 个值，不是 3 个！
+n, bins, _ = np.histogram(data, bins=30, density=True)  # 错误！
+```
+
+**修复方案（按优先级）：**
+
+1. **方案A：直接使用 ax.hist()（最推荐）**
+```python
+# 不要手动调用 np.histogram，直接用 ax.hist
+ax.hist(data, bins=30, density=True, color='#1f77b4', edgecolor='#000000', alpha=0.7)
+```
+
+2. **方案B：正确解包 np.histogram()**
+```python
+# 正确：np.histogram 只返回 2 个值
+n, bins = np.histogram(data, bins=30, density=True)
+# 然后使用 bin_centers 绘制
+bin_centers = (bins[:-1] + bins[1:]) / 2
+ax.bar(bin_centers, n, width=bins[1]-bins[0], ...)
+```
+
+**检测规则：**
+- 如果代码中有 `n, bins, _ = np.histogram(` 或类似的三元解包
+- 如果错误信息包含 "not enough values to unpack" 和 "np.histogram"
+- 优先使用方案A（直接用 ax.hist），避免手动处理
+
+**重要提示：**
+- `np.histogram()` 返回 `(counts, bin_edges)` - 2 个值
+- `ax.hist()` 返回 `(n, bins, patches)` - 3 个值
+- 不要混淆这两个函数的返回值！
+
+### 情况7：无效的 rcParams 参数
+如果遇到 "is not a valid rc parameter" 错误：
+
+**问题模式：**
+```python
+# 错误：某些 rcParams 参数不存在或已被移除
+plt.rcParams['font.kerning'] = True  # 无效参数！
+```
+
+**修复方案：**
+- 直接删除无效的 rcParams 设置
+- 只保留常用的有效参数：
+  - `font.sans-serif`
+  - `axes.unicode_minus`
+  - `figure.figsize`
+  - `font.size`
+
+**检测规则：**
+- 如果错误信息包含 "is not a valid rc parameter"
+- 删除导致错误的 rcParams 行"""
 
 
 def agent4_feedback_optimize_code(
     echarts_inline_js: str,
     code_evaluation_report: str,
     chart_evaluation_report: str,
-    llm_model: str = "qwen-plus",
+    llm_model: Optional[str] = None,
 ) -> str:
     user = (
         "【代码审查智能体输出（Agent3）】\n"

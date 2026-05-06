@@ -58,8 +58,6 @@ class PipelineExecutor:
         max_loops: int = 5,
         threshold: float = 0.75,
         model_provider: Optional[str] = None,
-        vlm_model: Optional[str] = None,
-        llm_model: Optional[str] = None,
     ) -> Tuple[bool, Optional[str], Optional[str], str]:
         """
         执行完整流水线，带状态更新
@@ -70,8 +68,6 @@ class PipelineExecutor:
             max_loops: 最大迭代轮数
             threshold: 验证通过阈值
             model_provider: 模型提供商 (qwen, openai, claude, gemini, deepseek, glm)
-            vlm_model: VLM 模型名称
-            llm_model: LLM 模型名称
         
         返回 (是否验证通过, 最终代码路径, 最终渲染PNG路径, 最后一轮说明摘要)
         """
@@ -81,16 +77,6 @@ class PipelineExecutor:
             original_env["MODEL_PROVIDER"] = os.environ.get("MODEL_PROVIDER")
             os.environ["MODEL_PROVIDER"] = model_provider
             pipeline_logger.info(f"[{self.pipeline_id}] 使用模型提供商: {model_provider}")
-        
-        if vlm_model:
-            original_env["DEFAULT_VLM_MODEL"] = os.environ.get("DEFAULT_VLM_MODEL")
-            os.environ["DEFAULT_VLM_MODEL"] = vlm_model
-            pipeline_logger.info(f"[{self.pipeline_id}] 使用 VLM 模型: {vlm_model}")
-        
-        if llm_model:
-            original_env["DEFAULT_LLM_MODEL"] = os.environ.get("DEFAULT_LLM_MODEL")
-            os.environ["DEFAULT_LLM_MODEL"] = llm_model
-            pipeline_logger.info(f"[{self.pipeline_id}] 使用 LLM 模型: {llm_model}")
         
         try:
             return self._run_pipeline_internal(
@@ -134,6 +120,7 @@ class PipelineExecutor:
                         input_chart_image_path=input_chart_image,
                         preset=Agent1Preset(out_dir=out_dir, dispatch_to_agents=False),
                         extra_feedback=None,
+                        vlm_model=None,
                     )
                     code = agent1_result.generated_code
                     

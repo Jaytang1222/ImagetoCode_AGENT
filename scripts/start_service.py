@@ -23,11 +23,11 @@ def start_backend():
     print("🚀 后端服务启动中...")
     print("=" * 60)
     print(f"📁 项目根目录: {ROOT_DIR}")
-    print(f"🌐 API 文档: http://localhost:8000/docs")
-    print(f"🔗 健康检查: http://localhost:8000/health")
+    print(f"🌐 API 文档: http://localhost:8001/docs")
+    print(f"🔗 健康检查: http://localhost:8001/health")
     print("=" * 60)
     
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
 
 def start_frontend():
     """启动前端服务"""
@@ -37,7 +37,7 @@ def start_frontend():
     print("🎨 前端服务启动中...")
     print("=" * 60)
     print(f"📁 前端目录: {frontend_dir}")
-    print(f"🌐 前端地址: http://localhost:5173")
+    print(f"🌐 前端地址: http://localhost:5174")
     print("=" * 60)
     
     # 使用 npm run dev 启动前端开发服务器
