@@ -1,9 +1,8 @@
 {
-  "name": "chartmind-frontend",
+  "name": "frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
-  "description": "ChartMind - Multi-Agent Chart Reproduction System Frontend",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

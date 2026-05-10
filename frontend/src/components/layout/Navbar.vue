@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
@@ -23,30 +23,32 @@ const isActive = (path) => {
 const toggleTheme = () => {
   theme.value = theme.value === 'light' ? 'dark' : 'light'
   document.documentElement.setAttribute('data-theme', theme.value)
-  localStorage.setItem('theme', theme.value)
 }
-
-// Initialize theme on mount
-onMounted(() => {
-  // Check for saved theme preference or default to 'light'
-  const savedTheme = localStorage.getItem('theme') || 'light'
-  theme.value = savedTheme
-  document.documentElement.setAttribute('data-theme', savedTheme)
-})
 </script>
 
 <template>
   <nav class="navbar">
     <div class="navbar-container">
       <!-- Logo & Brand -->
-      <router-link to="/" class="navbar-brand">
+      <div class="navbar-brand">
         <div class="logo">
-          <img src="../../assets/ChartMind.png" alt="ChartMind Logo" />
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="8" fill="url(#logo-gradient)"/>
+            <path d="M8 16L14 10L20 16L14 22L8 16Z" fill="white" opacity="0.9"/>
+            <path d="M14 10L20 16L26 10" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+            <defs>
+              <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                <stop offset="0%" stop-color="#a5e7a5"/>
+                <stop offset="100%" stop-color="#addeef"/>
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
         <div class="brand-text">
-          <span class="brand-name">ChartMind</span>
+          <span class="brand-name">ChartGen</span>
+          <span class="brand-subtitle">AI</span>
         </div>
-      </router-link>
+      </div>
 
       <!-- Navigation Links -->
       <div class="navbar-links">
@@ -95,10 +97,6 @@ onMounted(() => {
   transition: all var(--transition-base);
 }
 
-[data-theme="dark"] .navbar {
-  background: rgba(26, 40, 40, 0.8);
-}
-
 .navbar-container {
   max-width: 1440px;
   margin: 0 auto;
@@ -129,12 +127,6 @@ onMounted(() => {
   justify-content: center;
 }
 
-.logo img {
-  height: 36px;
-  width: auto;
-  object-fit: contain;
-}
-
 .brand-text {
   display: flex;
   align-items: baseline;
@@ -147,6 +139,14 @@ onMounted(() => {
   font-weight: 700;
   color: var(--color-text-primary);
   letter-spacing: -0.5px;
+}
+
+.brand-subtitle {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-action-blue);
+  letter-spacing: 0.5px;
 }
 
 /* Navigation Links */
@@ -284,10 +284,6 @@ onMounted(() => {
     gap: var(--space-24);
   }
 
-  .logo img {
-    height: 32px;
-  }
-
   .navbar-links {
     gap: var(--space-4);
   }
@@ -309,10 +305,6 @@ onMounted(() => {
   .navbar-container {
     padding: 0 var(--space-20);
     height: 56px;
-  }
-
-  .logo img {
-    height: 28px;
   }
 
   .brand-text {
