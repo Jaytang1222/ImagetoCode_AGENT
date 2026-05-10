@@ -40,7 +40,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  document.title = `${to.meta.title || 'ChartMind'} - Multi-Agent Chart Reproduction`
+  document.title = `${to.meta.title || 'Chart Reproduction'} - Multi-Agent System`
   next()
 })
 
