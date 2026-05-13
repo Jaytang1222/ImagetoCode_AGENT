@@ -1,0 +1,121 @@
+### ===== PART 1: DIFF-TO-CODE MAPPING =====
+
+ISSUE #1: P2-TEXT-1  
+- Visual Symptom: X轴标签中上标符号显示为方框 `×10□` 而非立方体 `×10³`  
+- Code Root Cause: `ax.set_xlabel()` 字符串中使用了错误的 Unicode 上标字符（U+25A1 □ 或占位符）而非 U+00B3 ³  
+- Affected Location:  
+  * Estimated Line: ~20  
+  * Code Section: "In axis config section, first xlabel call"  
+  * Function: "ax.set_xlabel()"  
+  * Parameter: "label string"  
+  * Pattern: `ax\.set_xlabel\(\s*['"][^'"]*×10[^'"]*['"]\s*,?`  
+- Current Value: `'Data size (×10□)'` （注：实际代码中显示为 `'Data size (×10³)'` — 但 Agent2 视觉评估明确观测到渲染为 □，说明该字符串在运行时被错误解码或字体不支持；而源码文本虽写为 `³`，其 Unicode 形式可能为损坏/不可见控制字符，或被编辑器/IDE 替换为方框占位符）  
+- Required Value: `'Data size (×10³)'` with **valid UTF-8 U+00B3** (not U+2073, U+25A1, or surrogate pairs)  
+- Validation Rule: 检查 `ax.set_xlabel(...)` 参数是否为严格 `'Data size (×10³)'`（Python 字符串字面量含 Unicode U+00B3），且无零宽字符、BOM、或混合编码痕迹  
+
+> ✅ 注：Agent2 报告中明确指出生成图渲染为 `×10□`，而当前代码文本显示为 `×10³` — 这表明**源码中 `³` 字符已损坏或未被正确保存为 UTF-8**（例如被保存为 Latin-1、或含不可见控制字符）。视觉差异根源是字符串字面量的编码/Unicode 表示错误，而非逻辑值错误。因此修复必须确保该字符串是干净的、可渲染的 U+00B3。
+
+---
+
+### ===== PART 2: ROOT CAUSE ANALYSIS =====
+
+**文本问题 → 代码映射：**  
+- X轴标签不匹配 → `ax.set_xlabel('...')` 中的字符串字面量（非变量）  
+  - 关键风险点：Unicode 上标字符 `³`（U+00B3）易在非UTF-8环境、旧编辑器、或复制粘贴中损坏为 `□`（U+25A1）、`³`（U+2073）、或乱码字节序列  
+  - 验证方式：用 `repr(ax.get_xlabel())` 在运行时检查实际字符串内容；若返回 `'Data size (×10\\u25a1)'` 或 `'Data size (×10\\ufffd)'` 则确认损坏  
+
+所有其他维度（COLOR、AXIS、GEOMETRY、LEGEND、GRID）评分均为100 → 无代码级偏差，无需映射。
+
+---
+
+### ===== PART 3: PRIORITIZED FIX INSTRUCTIONS =====
+
+**=== P0 FIXES (Critical - Chart Unusable) ===**  
+None  
+
+**=== P1 FIXES (High Priority - Major Visual Differences) ===**  
+None  
+
+**=== P2 FIXES (Medium Priority - Minor Visual Differences) ===**  
+
+1. [FIX-P2-1] Location: Line ~20 | In ax.set_xlabel() call | Parameter: label string  
+   Change: Replace current `ax.set_xlabel('Data size (×10³)')` with byte-identical, clean UTF-8 version using U+00B3  
+   Reason: 当前字符串中的上标 `³` 已损坏（视觉渲染为 □），需确保其为标准 Unicode U+00B3 可渲染字符  
+   Code Pattern: `ax\.set_xlabel\(\s*['"][^'"]*Data size \(×10[^'"]*['"]\s*\)`  
+   Validation: 确认该行字符串在源码中为纯 `'Data size (×10³)'`（U+00B3），且文件以 UTF-8 无 BOM 编码保存；运行时 `ax.get_xlabel()` 返回 `'Data size (×10³)'`（非 `□` 或 ``）
+
+**=== P3 FIXES (Low Priority - Aesthetic Details) ===**  
+None  
+
+---
+
+### ===== PART 4: MUST-KEEP ELEMENTS =====
+
+以下元素在当前代码中是正确的，必须保留：  
+- ✓ 图表类型：柱状图 (`ax.bar`)  
+- ✓ 数据系列数量：4个系列  
+- ✓ 图形大小：`(9, 6)`  
+- ✓ 中文字体配置：虽未显式设置，但 Agent2 未报告中文渲染问题 → 推定系统默认支持（无需添加 `plt.rcParams['font.sans-serif']`）  
+- ✓ 保存函数：`plt.savefig(output_path, dpi=100, bbox_inches='tight')`  
+- ✓ 无 `plt.show()` 调用  
+- ✓ 坐标轴范围与刻度：`ax.set_ylim(0, 80)`, `ax.set_yticks(...)`, `ax.set_xticks(x)`  
+- ✓ 图例位置与布局：`loc='upper center'`, `bbox_to_anchor=(0.5, 1.15)`, `ncol=2`  
+- ✓ 网格状态：`ax.grid(False)`（原图无网格）  
+- ✓ 颜色与填充：`colors = ['#add8e6', '#00008b', '#90ee90', '#228b22']`, `hatches = ['-', '|', '/', '\\']`  
+
+---
+
+### ===== PART 5: STRUCTURED_AGENT4_INPUT =====
+
+```json
+{
+  "metadata": {
+    "total_fixes": 1,
+    "p0_count": 0,
+    "p1_count": 0,
+    "p2_count": 1,
+    "p3_count": 0,
+    "estimated_difficulty": "low"
+  },
+  "priority_fixes": [
+    {
+      "id": "FIX-P2-1",
+      "priority": "P2",
+      "issue": "X轴标签上标字符损坏导致渲染为方框（□）",
+      "location": {
+        "line_estimate": 20,
+        "section": "In axis config section, first xlabel call",
+        "function": "ax.set_xlabel",
+        "parameter": "label string",
+        "pattern": "ax\\.set_xlabel\\(\\s*['\"][^'\"]*Data size \\(×10[^'\"]*['\"]\\s*\\)"
+      },
+      "change": {
+        "current": "ax.set_xlabel('Data size (×10³)') — with corrupted U+00B3",
+        "required": "ax.set_xlabel('Data size (×10³)') — with clean UTF-8 U+00B3",
+        "type": "string_replacement_utf8_clean"
+      },
+      "reason": "Visual rendering shows '×10□' instead of '×10³'; indicates source string contains invalid/unsupported Unicode encoding for superscript 3.",
+      "validation": "After fix, ax.get_xlabel() must return exactly 'Data size (×10³)' and render correctly in output image.",
+      "dependencies": []
+    }
+  ],
+  "must_keep": [
+    "图表类型：柱状图 (ax.bar)",
+    "系列数量：4",
+    "图形大小：(9, 6)",
+    "坐标轴范围：ax.set_ylim(0, 80), ax.set_xticks(x)",
+    "Y轴刻度：np.arange(0, 81, 20)",
+    "图例配置：loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2",
+    "网格状态：ax.grid(False)",
+    "颜色列表：['#add8e6', '#00008b', '#90ee90', '#228b22']",
+    "填充图案：['-', '|', '/', '\\']",
+    "保存函数：plt.savefig(output_path, dpi=100, bbox_inches='tight')",
+    "无 plt.show() 调用"
+  ],
+  "quick_patch_hints": [
+    "手动删除第20行的 ax.set_xlabel(...)，重新输入 'Data size (×10³)' — 使用系统字符映射表或 Unicode 输入法确保 U+00B3",
+    "在 VS Code / PyCharm 中右键 → 'Reopen with Encoding' → 选择 UTF-8，确认字符串显示正常",
+    "运行 print(repr(ax.get_xlabel())) 检查实际值；若含 '\\u25a1' 或 '\\ufffd'，则需重写该字符串"
+  ]
+}
+```

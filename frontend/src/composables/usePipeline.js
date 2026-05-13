@@ -110,7 +110,14 @@ export function usePipeline() {
     // 轮次完成
     wsService.on('roundComplete', async (data) => {
       // 获取当前轮次的结果
-      await getResults(data.round)
+      const roundResults = await getResults(data.round)
+      
+      // 记录本轮得分到 iterationHistory
+      store.results.iterationHistory.push({
+        score: roundResults?.score ?? 0,
+        round: data.round,
+        passed: data.passed ?? false
+      })
       
       if (data.passed) {
         // 验证通过，流水线完成
@@ -128,7 +135,18 @@ export function usePipeline() {
 
     // 流水线完成
     wsService.on('pipelineComplete', async (data) => {
-      await getResults()
+      const finalResults = await getResults()
+      // 将最终结果也追加到 iterationHistory（如果还没有被 roundComplete 添加）
+      if (finalResults) {
+        const lastEntry = store.results.iterationHistory[store.results.iterationHistory.length - 1]
+        if (!lastEntry || Math.abs(lastEntry.score - finalResults.score) > 0.001) {
+          store.results.iterationHistory.push({
+            score: finalResults.score ?? 0,
+            round: store.currentRound,
+            passed: finalResults.passed ?? false
+          })
+        }
+      }
       // 使用 execution_completed 判断执行是否完成，而不是 success（验证结果）
       const executionSuccess = data.execution_completed !== false
       store.completePipeline(executionSuccess)
@@ -155,7 +173,12 @@ export function usePipeline() {
       store.updateResults({
         validationScore: data.score,
         validationPassed: data.passed,
-        dimensions: data.dimensions
+        dimensions: data.dimensions || {
+          color: data.dimensions?.color ?? 0,
+          text: data.dimensions?.text ?? 0,
+          structure: data.dimensions?.structure ?? 0,
+          vlm: data.dimensions?.vlm ?? 0
+        }
       })
     })
 

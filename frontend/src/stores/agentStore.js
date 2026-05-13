@@ -65,6 +65,7 @@ export const useAgentStore = defineStore('agent', () => {
     validationScore: null,
     validationPassed: null,
     reports: [],
+    iterationHistory: [],
     dimensions: {
       color: 0,
       text: 0,
@@ -120,6 +121,7 @@ export const useAgentStore = defineStore('agent', () => {
       validationScore: null,
       validationPassed: null,
       reports: [],
+      iterationHistory: [],
       dimensions: {
         color: 0,
         text: 0,
@@ -134,6 +136,7 @@ export const useAgentStore = defineStore('agent', () => {
     pipelineStatus.value = 'running'
     currentRound.value = 1
     resetAgents()
+    // 不重置 results，保留之前数据供 Visualization 页面使用
   }
 
   const stopPipeline = () => {
@@ -146,6 +149,12 @@ export const useAgentStore = defineStore('agent', () => {
   const completePipeline = (success = true) => {
     isRunning.value = false
     pipelineStatus.value = success ? 'completed' : 'failed'
+    // 完成时将所有 agent 状态设为 completed，进度设为 100%
+    agents.value.forEach(agent => {
+      agent.status = 'completed'
+      agent.progress = 100
+      agent.currentTask = ''
+    })
   }
 
   const nextRound = () => {

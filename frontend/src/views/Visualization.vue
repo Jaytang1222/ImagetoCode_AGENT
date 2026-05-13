@@ -7,32 +7,23 @@ import ProgressIndicator from '../components/ProgressIndicator.vue'
 
 const store = useAgentStore()
 
-// Mock数据用于展示
-const mockIterationData = computed(() => {
-  const data = []
-  for (let i = 1; i <= store.currentRound; i++) {
-    data.push({
-      score: Math.min(0.4 + (i * 0.12) + (Math.random() * 0.05), 0.95)
-    })
-  }
-  if (store.results.validationScore && data.length > 0) {
-    data[data.length - 1].score = store.results.validationScore
-  }
-  return data
+// 使用真实迭代历史数据
+const iterationData = computed(() => {
+  return store.results.iterationHistory || []
 })
 
 const dimensionScores = computed(() => {
-  const dims = store.results.dimensions
+  const dims = store.results.dimensions || { color: 0, text: 0, structure: 0, vlm: 0 }
   return [
-    { name: 'Color Consistency', value: dims.color, color: '#a5e7a5' },
-    { name: 'Text Accuracy', value: dims.text, color: '#addeef' },
-    { name: 'Structure Match', value: dims.structure, color: '#5cb8d9' },
-    { name: 'Visual Similarity', value: dims.vlm, color: '#7dd17d' }
+    { name: 'Color Consistency', value: dims.color ?? 0, color: '#a5e7a5' },
+    { name: 'Text Accuracy', value: dims.text ?? 0, color: '#addeef' },
+    { name: 'Structure Match', value: dims.structure ?? 0, color: '#5cb8d9' },
+    { name: 'Visual Similarity', value: dims.vlm ?? 0, color: '#7dd17d' }
   ]
 })
 
 const hasData = computed(() => {
-  return store.results.validationScore !== null || store.currentRound > 0
+  return iterationData.value.length > 0 || store.results.validationScore !== null
 })
 </script>
 
@@ -83,7 +74,7 @@ const hasData = computed(() => {
             <!-- Trend Chart -->
             <div class="chart-card full-width">
               <TrendChart 
-                :data="mockIterationData" 
+                :data="iterationData" 
                 title="Iteration Score Trend"
                 :height="400"
               />

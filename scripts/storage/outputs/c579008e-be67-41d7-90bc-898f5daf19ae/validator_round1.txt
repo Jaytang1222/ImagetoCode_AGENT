@@ -1,0 +1,5 @@
+pass=True
+final_score=0.682743
+round=1
+
+type=bar, thr=0.620, w(vlm=0.35,color=0.20,text=0.20,struct=0.25) | 图表核心数据与结构还原度高，仅存在图例位置微调及 X 轴标签字符渲染错误。 | color=0.818(global=0.856, block=0.782, hsv=0.832) | text=0.396(bleu=0.053, layout=0.737, cov=0.431) | struct=0.569(ssim=0.546, topo=0.589, dist=0.507, ang=0.711) | final=0.683

@@ -1,0 +1,50 @@
+{
+  "pass": true,
+  "final_score": 0.6827430134286002,
+  "round": 1,
+  "summary": "type=bar, thr=0.620, w(vlm=0.35,color=0.20,text=0.20,struct=0.25) | 图表核心数据与结构还原度高，仅存在图例位置微调及 X 轴标签字符渲染错误。 | color=0.818(global=0.856, block=0.782, hsv=0.832) | text=0.396(bleu=0.053, layout=0.737, cov=0.431) | struct=0.569(ssim=0.546, topo=0.589, dist=0.507, ang=0.711) | final=0.683",
+  "detailed_result": {
+    "final_score": 0.6827430134286002,
+    "passed": true,
+    "threshold": 0.62,
+    "chart_type": "bar",
+    "dimensions": {
+      "color": 0.8179443846234893,
+      "text": 0.3964856059625932,
+      "structure": 0.5694280612455346,
+      "vlm": 0.85
+    },
+    "weights": {
+      "color": 0.2,
+      "text": 0.2,
+      "structure": 0.25,
+      "vlm": 0.35
+    },
+    "details": {
+      "color": {
+        "score": 0.8179443846234893,
+        "global_hist_score": 0.8559341430664061,
+        "block_match_score": 0.7823065541734128,
+        "hsv_score": 0.8316474258610576,
+        "hsv_distance": 0.16835257413894247
+      },
+      "text": {
+        "score": 0.3964856059625932,
+        "bleu_score": 0.053184661451496314,
+        "layout_score": 0.7369765839926643,
+        "coverage_score": 0.43137254901960786
+      },
+      "structure": {
+        "score": 0.5694280612455346,
+        "ssim_score": 0.545923750490772,
+        "topology_score": 0.5886588609539767,
+        "distance_consistency": 0.5074235999485878,
+        "angle_consistency": 0.7105117524620601
+      },
+      "vlm": {
+        "score": 0.85,
+        "summary": "图表核心数据与结构还原度高，仅存在图例位置微调及 X 轴标签字符渲染错误。"
+      }
+    }
+  }
+}

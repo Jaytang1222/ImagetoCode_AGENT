@@ -37,7 +37,7 @@ def start_frontend():
     print("🎨 前端服务启动中...")
     print("=" * 60)
     print(f"📁 前端目录: {frontend_dir}")
-    print(f"🌐 前端地址: http://localhost:5174")
+    print(f"🌐 前端地址: http://localhost:5173")
     print("=" * 60)
     
     # 使用 npm run dev 启动前端开发服务器
@@ -64,11 +64,11 @@ if __name__ == "__main__":
     backend_thread = threading.Thread(target=start_backend, daemon=True)
     backend_thread.start()
     
-    # 等待后端启动
-    time.sleep(2)
-    
-    # 在主线程中启动前端（这样可以捕获 Ctrl+C）
     try:
+        # 等待后端启动
+        time.sleep(2)
+        
+        # 在主线程中启动前端（这样可以捕获 Ctrl+C）
         start_frontend()
     except KeyboardInterrupt:
         print("\n\n" + "=" * 60)
