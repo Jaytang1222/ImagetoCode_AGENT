@@ -173,10 +173,18 @@ def _validate_and_fix_code(code: str) -> Tuple[str, list]:
         fixed_code = fixed_code.replace('plt.show()', '# plt.show()  # 已注释：非交互环境')
         fixes_applied.append("注释掉 plt.show() 调用")
     
-    # 修复6：检查是否缺少 savefig
-    if 'savefig' not in fixed_code.lower():
-        # 在代码末尾添加 savefig
-        fixed_code = fixed_code.rstrip() + '\n\nplt.savefig(output_path, dpi=100, bbox_inches=\'tight\')\n'
+    # 修复6：强制替换所有 plt.savefig(...) 为使用 output_path
+    if re.search(r'plt\.savefig\s*\(', fixed_code):
+        # 已有 savefig 调用，全部替换为使用 output_path 变量
+        fixed_code = re.sub(
+            r'plt\.savefig\s*\([^)]*\)',
+            "plt.savefig(output_path, dpi=100, bbox_inches='tight')",
+            fixed_code
+        )
+        fixes_applied.append("强制替换 plt.savefig() 为使用 output_path 变量")
+    else:
+        # 没有 savefig，在代码末尾添加
+        fixed_code = fixed_code.rstrip() + "\n\nplt.savefig(output_path, dpi=100, bbox_inches='tight')\n"
         fixes_applied.append("添加缺失的 plt.savefig() 调用")
     
     return fixed_code, fixes_applied

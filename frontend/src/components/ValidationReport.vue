@@ -132,7 +132,7 @@ const formatScore = (score) => {
 
 const getScoreClass = (score) => {
   if (!score) return 'score-low'
-  if (score >= 0.75) return 'score-high'
+  if (score >= 0.7) return 'score-high'
   if (score >= 0.5) return 'score-medium'
   return 'score-low'
 }

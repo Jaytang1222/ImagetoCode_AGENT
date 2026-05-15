@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 from PIL import Image
@@ -43,19 +43,35 @@ def evaluate_color_consistency(
     hue_weight: float = 2.0,
     saturation_weight: float = 1.0,
     value_weight: float = 1.0,
+    original_array: Optional[np.ndarray] = None,
+    generated_array: Optional[np.ndarray] = None,
 ) -> ColorConsistencyResult:
     """
     计算颜色一致性分数（0~1）。
     - 全局颜色分布：衡量总体色彩风格是否接近；
     - 色块匹配：衡量局部区域（关键数据、背景、标注附近）颜色还原精度。
+
+    可选参数:
+        original_array: 预加载的原始图 RGB 数组 (H, W, 3) uint8，
+                        若提供则跳过从磁盘加载。
+        generated_array: 预加载的生成图 RGB 数组 (H, W, 3) uint8，
+                         若提供则跳过从磁盘加载。
     """
     if bins_per_channel <= 1:
         raise ValueError("bins_per_channel 必须大于 1")
     if grid_size[0] <= 0 or grid_size[1] <= 0:
         raise ValueError("grid_size 必须为正整数")
 
-    orig = _load_rgb_array(original_image_path, resize_to)
-    gen = _load_rgb_array(generated_image_path, resize_to)
+    orig = (
+        original_array
+        if original_array is not None
+        else _load_rgb_array(original_image_path, resize_to)
+    )
+    gen = (
+        generated_array
+        if generated_array is not None
+        else _load_rgb_array(generated_image_path, resize_to)
+    )
 
     global_score = _hist_intersection_score(orig, gen, bins_per_channel)
     block_score = _grid_block_hist_score(orig, gen, grid_size, bins_per_channel)

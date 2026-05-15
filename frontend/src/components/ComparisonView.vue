@@ -72,7 +72,7 @@ const formattedScore = computed(() => {
 
 const scoreColorClass = computed(() => {
   if (props.score === null) return ''
-  if (props.score >= 0.75) return 'score-high'
+  if (props.score >= 0.7) return 'score-high'
   if (props.score >= 0.5) return 'score-medium'
   return 'score-low'
 })

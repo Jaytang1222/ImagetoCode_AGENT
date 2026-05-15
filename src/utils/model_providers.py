@@ -17,6 +17,8 @@ class ModelProvider(str, Enum):
     OPENAI = "openai"
     GEMINI = "gemini"
     DOUBAO = "doubao"
+    DEEPSEEK = "deepseek"
+    RECOMMENDED = "recommended"
 
 
 class BaseModelClient(ABC):
@@ -68,10 +70,44 @@ class BaseModelClient(ABC):
 class QwenClient(BaseModelClient):
     """阿里云通义千问客户端"""
     
+    # Qwen 多模态模型名单（仅支持 MultiModalConversation 端点）
+    MULTIMODAL_MODELS = frozenset({
+        "qwen-vl-plus", "qwen-vl-max",
+        "qwen3.6-plus", "qwen3.6-flash",
+        "qwen3.5-plus", "qwen3.5-flash",
+        "qvq-max", "qwen2.5-vl-72b-instruct",
+        "qwen2.5-vl-7b-instruct", "qwen2.5-vl-3b-instruct",
+    })
+    
+    # Qwen 纯文本模型名单（仅支持 Generation 端点）
+    TEXT_ONLY_MODELS = frozenset({
+        "qwen-plus", "qwen-max", "qwen-turbo",
+        "qwen3.6-max-preview", "qwen3.6-outline-preview",
+        "qwq-plus", "qwq-max",
+    })
+    
     def __init__(self, api_key: str):
         super().__init__(api_key)
         import dashscope
         self.dashscope = dashscope
+    
+    @classmethod
+    def _check_model_endpoint(cls, model: str, expected_type: str) -> None:
+        """检查模型是否匹配当前端点类型，不匹配时抛出清晰错误"""
+        if expected_type == "llm":
+            if model in cls.MULTIMODAL_MODELS:
+                raise RuntimeError(
+                    f"模型 '{model}' 是多模态模型，仅支持 MultiModalConversation 端点，"
+                    f"不能通过 call_llm() (Generation 端点) 调用。"
+                    f"请改用纯文本模型（如 qwen-plus, qwen-max, qwen3.6-max-preview）"
+                )
+        elif expected_type == "vlm":
+            if model in cls.TEXT_ONLY_MODELS:
+                raise RuntimeError(
+                    f"模型 '{model}' 是纯文本模型，仅支持 Generation 端点，"
+                    f"不能通过 call_vlm() (MultiModalConversation 端点) 调用。"
+                    f"请改用多模态模型（如 qwen3.6-plus, qwen3.6-flash）"
+                )
     
     def _normalize_messages(self, messages: List[dict]) -> List[dict]:
         """将 system 的纯字符串转为多模态接口常用的 [{'text': ...}] 形式"""
@@ -88,6 +124,7 @@ class QwenClient(BaseModelClient):
         return out
     
     def call_vlm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 120) -> str:
+        self._check_model_endpoint(model, "vlm")
         import time
         import socket
         import ssl
@@ -131,6 +168,7 @@ class QwenClient(BaseModelClient):
                     raise
     
     def call_llm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 60) -> str:
+        self._check_model_endpoint(model, "llm")
         import time
         import socket
         from http import HTTPStatus
@@ -474,6 +512,71 @@ class DoubaoClient(BaseModelClient):
                     raise
 
 
+class DeepSeekClient(BaseModelClient):
+    """DeepSeek 客户端（兼容 OpenAI API，纯文本模型）"""
+
+    def __init__(self, api_key: str):
+        super().__init__(api_key)
+        try:
+            from openai import OpenAI
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.deepseek.com"
+            )
+        except ImportError:
+            raise RuntimeError("请安装 openai 库: pip install openai")
+
+    def _convert_messages(self, messages: List[dict]) -> List[dict]:
+        """转换消息格式为 OpenAI 格式"""
+        converted = []
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content")
+
+            if isinstance(content, str):
+                converted.append({"role": role, "content": content})
+            elif isinstance(content, list):
+                new_content = []
+                for item in content:
+                    if isinstance(item, dict):
+                        if "text" in item:
+                            new_content.append({"type": "text", "text": item["text"]})
+                converted.append({"role": role, "content": new_content})
+        return converted
+
+    def call_vlm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 120) -> str:
+        """DeepSeek 不支持多模态，调用 VLM 时抛出错误"""
+        raise RuntimeError(
+            "DeepSeek 是纯文本模型，不支持多模态 (VLM) 调用。请使用 call_llm() 或将 MODEL_PROVIDER 切换为支持 VLM 的提供商。"
+        )
+
+    def call_llm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 60) -> str:
+        import time
+
+        for attempt in range(max_retries):
+            try:
+                print(f"[DeepSeek LLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
+
+                converted_messages = self._convert_messages(messages)
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=converted_messages,
+                    timeout=timeout,
+                )
+
+                print(f"[DeepSeek LLM] ✅ 调用成功")
+                return response.choices[0].message.content.strip()
+
+            except Exception as e:
+                print(f"[DeepSeek LLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 3
+                    print(f"[DeepSeek LLM] 等待 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+                else:
+                    raise
+
+
 # 模型提供商工厂
 def create_model_client(provider: str, api_key: str, **kwargs) -> BaseModelClient:
     """
@@ -497,5 +600,7 @@ def create_model_client(provider: str, api_key: str, **kwargs) -> BaseModelClien
         return GeminiClient(api_key)
     elif provider == ModelProvider.DOUBAO:
         return DoubaoClient(api_key, kwargs.get("base_url", "https://ark.cn-beijing.volces.com/api/v3"))
+    elif provider == ModelProvider.DEEPSEEK:
+        return DeepSeekClient(api_key)
     else:
         raise ValueError(f"不支持的模型提供商: {provider}")

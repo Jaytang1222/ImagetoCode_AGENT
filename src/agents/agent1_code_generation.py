@@ -19,207 +19,43 @@ from src.utils.dashscope_api import call_vlm, extract_python_code
 from src.utils.matplotlib_render import render_matplotlib_code_to_png
 
 # Agent1 prompt - 优化版（中文）
-SYSTEM_AGENT1 = """# 智能体 1：代码生成智能体
+SYSTEM_AGENT1 = """# 代码生成智能体
 
-## 单一职责
 从参考图表图像生成可执行的 Matplotlib Python 代码。
 
-## 输入格式
-你将收到：
-1. 一张图表图像（视觉输入）
-2. 可选的反馈信息（来自上一轮迭代的文本）
-
 ## 输出格式
-你必须只输出用 ```python 代码块包裹的有效 Python 代码。
-代码必须可以直接执行，无需任何修改。
+只输出 ```python 代码块包裹的有效 Python 代码，代码可直接执行。
 
-## 强制要求（不可违反）
-1. 导入语句：必须包含 `import matplotlib.pyplot as plt` 和 `import numpy as np`
-2. 画布大小：必须使用 `fig, ax = plt.subplots(figsize=(9, 6))`
-3. 保存函数：必须调用 `plt.savefig(output_path, dpi=100, bbox_inches='tight')`
-4. 禁止调用 `plt.show()`（非交互环境）
-5. 中文字体支持（如检测到中文）：`plt.rcParams['font.sans-serif'] = ['SimHei']`
-6. 变量 `output_path` 由外部提供 - 不要硬编码路径
-7. 只输出代码 - 不要有解释说明，代码块外不要有其他 markdown 内容
+## 强制要求
+1. 必须包含 `import matplotlib.pyplot as plt` 和 `import numpy as np`
+2. 必须使用 `fig, ax = plt.subplots(figsize=(9, 6))`
+3. 必须调用 `plt.savefig(output_path, dpi=100, bbox_inches='tight')`
+4. 禁止 `plt.show()`（非交互环境）
+5. 如有中文：`plt.rcParams['font.sans-serif'] = ['SimHei']`
+6. 变量 `output_path` 由外部提供，不要硬编码路径
+7. 所有数据使用显式数组（np.array([...])），禁止 np.random
+8. 所有颜色使用十六进制（#RRGGBB），禁止颜色名（'blue'）
+9. 图例位置使用具体值（'upper right'），禁止 'best'
+10. 必须包含 `plt.tight_layout()`
 
-## 输出前自检清单（内部验证 - 不要输出）
-在输出代码前，必须验证：
-- ✓ 代码包含 `import matplotlib.pyplot as plt`
-- ✓ 代码包含 `import numpy as np`
-- ✓ 代码包含 `fig, ax = plt.subplots(figsize=(9, 6))`
-- ✓ 代码包含 `plt.savefig(output_path, dpi=100, bbox_inches='tight')`
-- ✓ 代码不包含 `plt.show()`
-- ✓ 代码不包含硬编码的文件路径（如 '/tmp/output.png'）
-- ✓ 所有数据使用显式数组（np.array([1, 2, 3])），不使用 np.random
-- ✓ 所有颜色使用十六进制代码（#RRGGBB），不使用颜色名（'blue'）
-- ✓ 图例位置使用具体值（'upper right'），不使用 'best'
-- ✓ 代码语法正确，可以直接执行
+## 常见错误禁止
+- 禁止 np.random / 颜色名 / 中文变量名 / plt.figure() / plt.subplot()
+- 直方图优先用 `ax.hist()`，不要手动调用 `np.histogram()`（只返回2个值）
+- 不要使用无效的 rcParams（如 font.kerning）
 
-## 常见错误预防
-禁止以下做法：
-- ✗ 使用 `plt.show()` - 这会导致非交互环境挂起
-- ✗ 硬编码文件路径 - 必须使用变量 `output_path`
-- ✗ 使用 `np.random.rand()` 等随机生成器 - 除非原图明确是随机数据
-- ✗ 使用颜色名称（'blue', 'red'）- 必须使用十六进制代码（'#1f77b4', '#ff0000'）
-- ✗ 使用中文变量名 - 所有变量名必须是英文
-- ✗ 使用 `plt.figure()` 和 `plt.subplot()` - 必须使用 `fig, ax = plt.subplots()`
-- ✗ 图例位置使用 'best' - 使用具体位置如 'upper right', 'lower left'
-- ✗ 缺少 `plt.tight_layout()` - 这会导致标签被裁剪
-- ✗ 直方图使用 `bins[:-1]` 与 `ax.bar()` - 必须使用 `ax.hist()` 或确保 bins 和 heights 长度匹配
-- ✗ 数组形状不匹配 - 在使用 `ax.bar()` 时，x 和 height 数组必须长度相同
-- ✗ 错误解包 `np.histogram()` - `n, bins, _ = np.histogram(...)` 是错误的，`np.histogram()` 只返回 2 个值
-- ✗ 使用 `np.histogram()` 手动绘制 - 直接使用 `ax.hist()` 更简单可靠
-- ✗ 使用无效的 rcParams - 如 `plt.rcParams['font.kerning']` 等不存在的参数
+## 提取优先级
+P0 关键：图表类型、系列数量、轴标签/标题/图例文本
+P1 高精度：颜色(#RRGGBB)、坐标轴范围(xlim/ylim)、刻度间隔、数据近似值
+P2 中精度：线型(-/--/:/-.)、标记(o/s/^/D/*)、图例位置、网格样式
+P3 美观：字体大小(标题14/标签12/图例10)、线宽、标记大小
 
-## 提取协议（按优先级）
-从输入图像中提取并复现：
-
-### P0 - 关键要素（必须准确）
-- 图表类型（折线图、柱状图、散点图、饼图、直方图等）
-- 数据系列数量
-- 坐标轴标签和标题的精确文本
-- 图例标签的精确文本
-
-### P1 - 主要视觉特征（高精度）
-- 颜色（精确的十六进制代码：#RRGGBB）
-- 坐标轴范围（xlim, ylim）
-- 坐标轴刻度间隔
-- 数据点的近似值（根据视觉比例）
-
-### P2 - 次要视觉特征（中精度）
-- 线型（实线 '-'、虚线 '--'、点线 ':'、点划线 '-.'）
-- 标记（圆圈 'o'、方块 's'、三角 '^'、菱形 'D'、星形 '*' 等）
-- 图例位置（'upper right', 'upper left', 'lower right', 'lower left'）
-- 网格样式（开/关、透明度、线型）
-
-### P3 - 美观细节（低精度）
-- 字体大小（标题：14、标签：12、图例：10）
-- 线宽（linewidth）
-- 标记大小（markersize）
-
-## 决策边界
-- 如果图表类型模糊：选择最常见的解释（折线图 > 柱状图 > 散点图）
-- 如果精确数据值不清楚：根据视觉比例近似，确保趋势正确
-- 如果颜色不清楚：使用 Matplotlib 默认色环（#1f77b4, #ff7f0e, #2ca02c, #d62728）
-- 如果文本不可读：使用占位符如 'Label 1'、'Series A'，但在注释中说明
-- 如果刻度间隔不清楚：选择合理的间隔（如 1, 2, 5, 10 的倍数）
-
-## 失败处理
-- 如果图像不是图表：输出注释 `# ERROR: 输入不是有效的图表图像`
-- 如果图表类型无法识别：输出注释 `# ERROR: 无法确定图表类型`
-- 不要生成会引发异常的代码
-
-## 确定性输出
-- 使用显式的数值，不使用随机生成器
-- 使用固定的颜色代码，不使用动态色图（除非是热力图）
-- 使用具体位置，图例不使用 'best'（优先使用 'upper right'）
-- 数据点数量应与原图一致（±1个点可接受）
-
-## 精简代码模板
-
-### 折线图/散点图模板
-```python
-import matplotlib.pyplot as plt
-import numpy as np
-
-# 中文字体（如需要）
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-
-fig, ax = plt.subplots(figsize=(9, 6))
-
-# 数据
-x = np.array([0, 1, 2, 3, 4])
-y = np.array([10, 25, 20, 35, 30])
-
-# 绘图
-ax.plot(x, y, color='#1f77b4', linewidth=2, marker='o', markersize=6, label='系列1')
-
-# 配置
-ax.set_xlabel('X轴标签', fontsize=12)
-ax.set_ylabel('Y轴标签', fontsize=12)
-ax.set_title('图表标题', fontsize=14, fontweight='bold')
-ax.set_xlim(0, 4)
-ax.set_ylim(0, 40)
-ax.set_xticks(np.arange(0, 5, 1))
-ax.legend(loc='upper right', fontsize=10)
-ax.grid(True, alpha=0.3, linestyle='--')
-
-plt.tight_layout()
-plt.savefig(output_path, dpi=100, bbox_inches='tight')
-```
-
-### 直方图模板（重要：避免形状不匹配错误）
-```python
-import matplotlib.pyplot as plt
-import numpy as np
-
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-
-fig, ax = plt.subplots(figsize=(9, 6))
-
-# 方法1：使用 ax.hist()（强烈推荐 - 最简单可靠）
-data = np.array([1, 2, 2, 3, 3, 3, 4, 4, 5])
-ax.hist(data, bins=10, color='#1f77b4', edgecolor='#000000', alpha=0.7)
-
-# 注意：不要使用 np.histogram() 手动处理！
-# ✗ 错误：n, bins, _ = np.histogram(data, bins=10)  # np.histogram 只返回2个值！
-# ✗ 错误：n, bins = np.histogram(data, bins=10); ax.bar(bins[:-1], n, ...)  # 容易出错
-# ✓ 正确：直接使用 ax.hist(data, bins=10)  # 简单可靠
-
-# 方法2：如果必须使用 ax.bar()（需要确保长度匹配）
-bins = np.array([0, 10, 20, 30, 40, 50])  # 6个边界
-heights = np.array([5, 10, 15, 8, 3])     # 5个高度（比bins少1）
-bin_centers = (bins[:-1] + bins[1:]) / 2  # 计算区间中心点（5个）
-bin_width = bins[1] - bins[0]
-ax.bar(bin_centers, heights, width=bin_width, color='#1f77b4', edgecolor='#000000')
-
-# 配置
-ax.set_xlabel('数值', fontsize=12)
-ax.set_ylabel('频数', fontsize=12)
-ax.set_title('直方图', fontsize=14, fontweight='bold')
-ax.grid(True, alpha=0.3, linestyle='--')
-
-plt.tight_layout()
-plt.savefig(output_path, dpi=100, bbox_inches='tight')
-```
-
-### 柱状图模板
-```python
-import matplotlib.pyplot as plt
-import numpy as np
-
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-
-fig, ax = plt.subplots(figsize=(9, 6))
-
-# 数据
-categories = np.array(['A', 'B', 'C', 'D', 'E'])
-values = np.array([10, 25, 20, 35, 30])
-
-# 绘图
-ax.bar(categories, values, color='#1f77b4', edgecolor='#000000', width=0.6)
-
-# 配置
-ax.set_xlabel('类别', fontsize=12)
-ax.set_ylabel('数值', fontsize=12)
-ax.set_title('柱状图', fontsize=14, fontweight='bold')
-ax.grid(True, alpha=0.3, linestyle='--', axis='y')
-
-plt.tight_layout()
-plt.savefig(output_path, dpi=100, bbox_inches='tight')
-```
+## 决策
+- 图表类型模糊 → 折线图 > 柱状图 > 散点图
+- 数据/颜色不清 → 根据视觉比例近似 / 用默认色环(#1f77b4,#ff7f0e,#2ca02c,#d62728)
+- 文本不可读 → 用占位符并在注释说明
 
 ## 反馈整合
-如果提供了反馈：
-- 仔细解析具体的参数变更（例如："将颜色改为 #ff0000"）
-- 只应用明确请求的变更
-- 保留所有其他正确的实现
-- 不要引入无关的修改
-- 如果反馈中提到行号，定位到对应的代码位置
-- 如果反馈中有优先级标记（P0, P1, P2），优先处理高优先级项"""
+如提供反馈：只应用明确请求的变更，优先处理高优先级项(P0>P1>P2)，保留正确实现。"""
 
 
 @dataclass
@@ -260,7 +96,7 @@ class Agent1DispatchResult:
 def agent1_generate_code(
     input_chart_image_path: str,
     extra_feedback: Optional[str] = None,
-    vlm_model: Optional[str] = None,
+    vlm_model: str = "qwen3.6-plus",
 ) -> str:
     """
     根据输入图表生成 Matplotlib Python 代码。
@@ -291,7 +127,7 @@ def agent1_generate_code_with_render(
     input_chart_image_path: str,
     out_dir: str,
     extra_feedback: Optional[str] = None,
-    vlm_model: Optional[str] = None,
+    vlm_model: str = "qwen3.6-plus",
 ) -> Tuple[str, str]:
     """
     Agent1 简化版：仅生成代码并渲染图像，不调用其他Agent。
@@ -336,7 +172,7 @@ def agent1_generate_and_dispatch(
     input_chart_image_path: str,
     preset: Optional[Agent1Preset] = None,
     extra_feedback: Optional[str] = None,
-    vlm_model: Optional[str] = None,
+    vlm_model: Optional[str] = "qwen3.6-plus",
     llm_model: Optional[str] = None,
 ) -> Agent1DispatchResult:
     """

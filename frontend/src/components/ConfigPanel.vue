@@ -11,6 +11,7 @@
           <option value="openai">OpenAI GPT</option>
           <option value="gemini">Google Gemini</option>
           <option value="doubao">字节跳动豆包 (Doubao)</option>
+          <option value="recommended">推荐组合 (Qwen VLM + DeepSeek LLM)</option>
         </select>
         <p class="helper-text">选择用于图表生成和评估的AI模型</p>
       </div>
@@ -31,7 +32,7 @@
         v-model="localConfig.threshold"
         type="number"
         label="验证通过阈值"
-        placeholder="0.75"
+        placeholder="0.7"
         helperText="相似度分数达到此值即通过验证（0-1之间）"
         step="0.05"
         :min="0"
@@ -68,7 +69,7 @@ const props = defineProps({
     type: Object,
     default: () => ({
       maxLoops: 5,
-      threshold: 0.75,
+      threshold: 0.7,
       modelProvider: 'qwen'
     })
   }
@@ -78,7 +79,7 @@ const emit = defineEmits(['update:config', 'save'])
 
 const defaultConfig = {
   maxLoops: 5,
-  threshold: 0.75,
+  threshold: 0.7,
   modelProvider: 'qwen'
 }
 

@@ -11,7 +11,14 @@ from src.agents.agent3_code_evaluation import agent3_code_evaluation_report
 from src.agents.agent4_feedback_revision import agent4_feedback_optimize_code
 from src.utils.matplotlib_render import render_matplotlib_code_to_png
 from src.validators.multidim_validator import multidimensional_validate
+from src.utils.unified_api import AGENT_MODELS
 from backend.utils.logger import pipeline_logger
+
+
+def _get_agent_models() -> dict:
+    """根据当前 MODEL_PROVIDER 返回四个智能体的模型名映射"""
+    provider = os.environ.get("MODEL_PROVIDER", "qwen").lower()
+    return AGENT_MODELS.get(provider, AGENT_MODELS.get("qwen", {}))
 
 
 class PipelineExecutor:
@@ -102,6 +109,7 @@ class PipelineExecutor:
         code_path = os.path.join(out_dir, "current_matplotlib.py")
         gen_png = os.path.join(out_dir, "generated_chart.png")
 
+        agent_models = _get_agent_models()
         last_summary = ""
         code: Optional[str] = None
 
@@ -120,7 +128,7 @@ class PipelineExecutor:
                         input_chart_image_path=input_chart_image,
                         preset=Agent1Preset(out_dir=out_dir, dispatch_to_agents=False),
                         extra_feedback=None,
-                        vlm_model=None,
+                        vlm_model=agent_models.get("agent1"),
                     )
                     code = agent1_result.generated_code
                     
@@ -158,7 +166,10 @@ class PipelineExecutor:
             self._send_status("agent2", "running", "视觉评判", 0.0, "正在对比图表...")
             
             try:
-                chart_report = agent2_chart_evaluation_report(input_chart_image, png)
+                chart_report = agent2_chart_evaluation_report(
+                    input_chart_image, png,
+                    vlm_model=agent_models.get("agent2"),
+                )
                 Path(os.path.join(out_dir, f"report_agent2_round{loop+1}.txt")).write_text(
                     chart_report, encoding="utf-8"
                 )
@@ -173,7 +184,10 @@ class PipelineExecutor:
             self._send_status("agent3", "running", "代码评判", 0.0, "正在评估代码...")
             
             try:
-                code_report = agent3_code_evaluation_report(code, chart_report)
+                code_report = agent3_code_evaluation_report(
+                    code, chart_report,
+                    llm_model=agent_models.get("agent3"),
+                )
                 Path(os.path.join(out_dir, f"report_agent3_round{loop+1}.txt")).write_text(
                     code_report, encoding="utf-8"
                 )
@@ -188,7 +202,10 @@ class PipelineExecutor:
             self._send_status("agent4", "running", "代码优化", 0.0, "正在优化代码...")
             
             try:
-                code_new = agent4_feedback_optimize_code(code, code_report, chart_report)
+                code_new = agent4_feedback_optimize_code(
+                    code, code_report, chart_report,
+                    llm_model=agent_models.get("agent4"),
+                )
                 Path(
                     os.path.join(out_dir, f"current_matplotlib_after_agent4_r{loop+1}.py")
                 ).write_text(code_new, encoding="utf-8")

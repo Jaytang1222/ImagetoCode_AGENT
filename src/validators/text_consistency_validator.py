@@ -60,6 +60,8 @@ def evaluate_text_consistency(
     layout_weight: float = 0.30,
     coverage_weight: float = 0.15,
     min_match_similarity: float = 0.25,
+    original_pil_image: Optional[Image.Image] = None,
+    generated_pil_image: Optional[Image.Image] = None,
 ) -> TextConsistencyResult:
     """
     计算文本一致性分数（0~1）。
@@ -67,6 +69,10 @@ def evaluate_text_consistency(
     - 内容一致性：OCR 文本块两两匹配后，计算字符级 BLEU（含 BP）；
     - 布局一致性：匹配文本块中心点坐标偏差 + 尺寸偏差；
     - 覆盖率：参考图文本块中有多少在生成图中匹配成功。
+
+    可选参数:
+        original_pil_image: 预加载的原始图 PIL.Image（RGB），若提供则跳过从磁盘加载。
+        generated_pil_image: 预加载的生成图 PIL.Image（RGB），若提供则跳过从磁盘加载。
     """
     try:
         import pytesseract
@@ -76,8 +82,12 @@ def evaluate_text_consistency(
             "并确保本机已安装 Tesseract OCR 程序。"
         ) from exc
 
-    ref_blocks, ref_size = _extract_ocr_blocks(original_image_path, ocr_lang, pytesseract)
-    gen_blocks, gen_size = _extract_ocr_blocks(generated_image_path, ocr_lang, pytesseract)
+    ref_blocks, ref_size = _extract_ocr_blocks(
+        original_image_path, ocr_lang, pytesseract, pil_image=original_pil_image
+    )
+    gen_blocks, gen_size = _extract_ocr_blocks(
+        generated_image_path, ocr_lang, pytesseract, pil_image=generated_pil_image
+    )
 
     if not ref_blocks:
         # 参考图无文本时，视为文本一致性满分（避免误伤纯图表场景）。
@@ -154,16 +164,41 @@ def evaluate_text_consistency(
     )
 
 
-def _extract_ocr_blocks(image_path: str, ocr_lang: str, pytesseract) -> Tuple[List[OCRTextBlock], Tuple[int, int]]:
-    image = Image.open(image_path).convert("RGB")
-    width, height = image.size
-    prep = _preprocess_for_ocr(image)
+def _extract_ocr_blocks(
+    image_path: str,
+    ocr_lang: str,
+    pytesseract,
+    *,
+    pil_image: Optional[Image.Image] = None,
+) -> Tuple[List[OCRTextBlock], Tuple[int, int]]:
+    if pil_image is not None:
+        image = pil_image
+    else:
+        image = Image.open(image_path).convert("RGB")
+    orig_width, orig_height = image.size
+
+    # 优化：OCR 前先降采样到合理分辨率（宽度不超过 2000px），大幅减少 OCR 耗时
+    max_dim = 2000
+    if orig_width > max_dim or orig_height > max_dim:
+        ratio = max_dim / max(orig_width, orig_height)
+        new_w = int(orig_width * ratio)
+        new_h = int(orig_height * ratio)
+        downscaled = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    else:
+        downscaled = image
+        new_w, new_h = orig_width, orig_height
+
+    prep = _preprocess_for_ocr(downscaled)
     data = pytesseract.image_to_data(
         prep,
         lang=ocr_lang,
         output_type=pytesseract.Output.DICT,
         config="--oem 3 --psm 6",
     )
+    # 将 OCR 坐标映射回原始图像坐标系
+    scale_x = orig_width / max(new_w, 1)
+    scale_y = orig_height / max(new_h, 1)
+
     blocks: List[OCRTextBlock] = []
     n = len(data.get("text", []))
     for i in range(n):
@@ -171,15 +206,19 @@ def _extract_ocr_blocks(image_path: str, ocr_lang: str, pytesseract) -> Tuple[Li
         text = _normalize_text(raw_text)
         if not text:
             continue
-        conf = _safe_float(data.get("conf", ["-1"])[i] if i < len(data.get("conf", [])) else -1)
-        left = int(data.get("left", [0])[i] if i < len(data.get("left", [])) else 0)
-        top = int(data.get("top", [0])[i] if i < len(data.get("top", [])) else 0)
-        bw = int(data.get("width", [0])[i] if i < len(data.get("width", [])) else 0)
-        bh = int(data.get("height", [0])[i] if i < len(data.get("height", [])) else 0)
+        conf = _safe_float(
+            data.get("conf", ["-1"])[i] if i < len(data.get("conf", [])) else -1
+        )
+        left = int((int(data.get("left", [0])[i] if i < len(data.get("left", [])) else 0)) * scale_x)
+        top = int((int(data.get("top", [0])[i] if i < len(data.get("top", [])) else 0)) * scale_y)
+        bw = int((int(data.get("width", [0])[i] if i < len(data.get("width", [])) else 0)) * scale_x)
+        bh = int((int(data.get("height", [0])[i] if i < len(data.get("height", [])) else 0)) * scale_y)
         if bw <= 0 or bh <= 0:
             continue
-        blocks.append(OCRTextBlock(text=text, conf=conf, left=left, top=top, width=bw, height=bh))
-    return blocks, (width, height)
+        blocks.append(
+            OCRTextBlock(text=text, conf=conf, left=left, top=top, width=bw, height=bh)
+        )
+    return blocks, (orig_width, orig_height)
 
 
 def _preprocess_for_ocr(image: Image.Image) -> Image.Image:

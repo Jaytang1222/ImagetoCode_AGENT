@@ -13,11 +13,11 @@ BASE_DIR = Path(__file__).parent.parent
 
 # 服务器配置
 SERVER_HOST = os.getenv("SERVER_HOST", "localhost")
-SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+SERVER_PORT = int(os.getenv("SERVER_PORT", "8001"))
 BASE_URL = os.getenv("BASE_URL", f"http://{SERVER_HOST}:{SERVER_PORT}")
 
 # API配置 - 多模型支持
-# 当前使用的模型提供商 (qwen, openai, gemini, doubao)
+# 当前使用的模型提供商 (qwen, openai, gemini, doubao, recommended)
 MODEL_PROVIDER = os.getenv("MODEL_PROVIDER", "qwen")
 
 # 各提供商的 API Key
