@@ -2,12 +2,15 @@
 """
 多维验证器（流程图）：对比「原始参考图」与「修改后代码渲染图」，给出是否通过与分数。
 使用 VLM 输出结构化判断。
+
+性能优化：子验证器并行执行 + 图表类型代码推断 + 跨轮次缓存。
 """
 from __future__ import annotations
 
 import json
 import re
-from typing import Dict, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Optional, Tuple
 
 from src.validators import (
     evaluate_color_consistency,
@@ -60,6 +63,27 @@ def _resolve_chart_policy(
     return dynamic_threshold, p["weights"]
 
 
+def _infer_chart_type_from_code(code: str) -> Optional[str]:
+    """
+    从 Matplotlib 代码推断图表类型（毫秒级，避免 VLM 调用）。
+    返回：line/bar/scatter/pie/heatmap/unknown 或 None（无法推断）。
+    """
+    if not code:
+        return None
+    patterns = {
+        "line":    [r"\.plot\s*\(", r"\.semilogx\s*\(", r"\.semilogy\s*\(", r"\.step\s*\("],
+        "bar":     [r"\.bar\s*\(", r"\.barh\s*\("],
+        "scatter": [r"\.scatter\s*\("],
+        "pie":     [r"\.pie\s*\("],
+        "heatmap": [r"\.imshow\s*\(", r"\.matshow\s*\(", r"\.pcolormesh\s*\(", r"\.pcolor\s*\("],
+    }
+    for chart_type, pats in patterns.items():
+        for pat in pats:
+            if re.search(pat, code):
+                return chart_type
+    return None
+
+
 def _infer_chart_type_vlm(original_image_path: str, vlm_model: Optional[str] = None) -> str:
     """
     识别图表类型，用于动态权重与阈值。
@@ -93,6 +117,8 @@ def multidimensional_validate(
     chart_type: str = "auto",
     chart_report: str = "",
     code_report: str = "",
+    current_code: str = "",
+    cached_chart_type: Optional[str] = None,
 ) -> Tuple[bool, float, str, dict]:
     """
     返回 (是否通过, 最终分数 0~1, 简短说明, 详细结果字典)。
@@ -125,34 +151,71 @@ def multidimensional_validate(
     参数:
         chart_report: Agent2 的视觉评判报告
         code_report: Agent3 的代码评判报告
+        current_code: 当前 Matplotlib 代码（用于代码级图表类型推断）
+        cached_chart_type: 跨轮次缓存的图表类型（跳过重复 VLM 调用）
     """
-    # 先做颜色维度量化评估（色块匹配 + 直方图 + HSV 距离）。
-    color_result = evaluate_color_consistency(
-        original_image_path,
-        generated_image_path,
-        resize_to=(512, 512),
-        grid_size=(8, 8),
-        bins_per_channel=16,
-    )
-    # 再做文本一致性量化评估（OCR + BLEU + 空间偏差）。
-    text_result = evaluate_text_consistency(
-        original_image_path,
-        generated_image_path,
-        ocr_lang="chi_sim+eng",
-        max_bleu_n=4,
-    )
-    # 最后做整体结构一致性（SSIM + 空间拓扑关系）。
-    struct_result = evaluate_structural_consistency(
-        original_image_path,
-        generated_image_path,
-        resize_to=(512, 512),
-        max_keypoints=12,
-    )
-    inferred_type = (
-        _infer_chart_type_vlm(original_image_path, vlm_model)
-        if chart_type == "auto"
-        else chart_type.lower().strip()
-    )
+    # ===== 图表类型解析（优先缓存 > 代码推断 > VLM） =====
+    inferred_type: str
+    need_vlm_chart_type = False
+
+    if chart_type != "auto":
+        inferred_type = chart_type.lower().strip()
+    elif cached_chart_type is not None:
+        # 使用跨轮次缓存，跳过 VLM
+        inferred_type = cached_chart_type
+    elif current_code:
+        # 从代码推断（毫秒级）
+        code_type = _infer_chart_type_from_code(current_code)
+        if code_type:
+            inferred_type = code_type
+        else:
+            need_vlm_chart_type = True
+            inferred_type = "unknown"  # 占位，VLM 完成后覆盖
+    else:
+        need_vlm_chart_type = True
+        inferred_type = "unknown"
+
+    # ===== 并行执行子验证器 + VLM chart_type 推断 =====
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {}
+
+        futures[executor.submit(
+            evaluate_color_consistency,
+            original_image_path, generated_image_path,
+            resize_to=(512, 512), grid_size=(8, 8), bins_per_channel=16,
+        )] = "color"
+
+        futures[executor.submit(
+            evaluate_text_consistency,
+            original_image_path, generated_image_path,
+            ocr_lang="chi_sim+eng", max_bleu_n=4,
+        )] = "text"
+
+        futures[executor.submit(
+            evaluate_structural_consistency,
+            original_image_path, generated_image_path,
+            resize_to=(512, 512), max_keypoints=12,
+        )] = "struct"
+
+        chart_type_future = None
+        if need_vlm_chart_type:
+            chart_type_future = executor.submit(
+                _infer_chart_type_vlm, original_image_path, vlm_model
+            )
+
+        # 收集结果（按完成顺序）
+        results = {}
+        for future in as_completed(futures):
+            key = futures[future]
+            results[key] = future.result()
+
+        color_result = results["color"]
+        text_result = results["text"]
+        struct_result = results["struct"]
+
+        # 如果需要 VLM chart_type，等待其完成
+        if chart_type_future:
+            inferred_type = chart_type_future.result()
     dynamic_threshold, weights = _resolve_chart_policy(inferred_type, threshold)
 
     system = """你是图表一致性评测器。你会看到两张图：第一张为参考原图，第二张为复现图。

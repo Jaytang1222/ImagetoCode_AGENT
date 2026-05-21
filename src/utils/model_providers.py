@@ -17,6 +17,7 @@ class ModelProvider(str, Enum):
     OPENAI = "openai"
     GEMINI = "gemini"
     DOUBAO = "doubao"
+    DEEPSEEK = "deepseek"
 
 
 class BaseModelClient(ABC):
@@ -474,6 +475,73 @@ class DoubaoClient(BaseModelClient):
                     raise
 
 
+class DeepSeekClient(BaseModelClient):
+    """DeepSeek 客户端（兼容 OpenAI API）"""
+    
+    DEFAULT_BASE_URL = "https://api.deepseek.com"
+    
+    def __init__(self, api_key: str, base_url: Optional[str] = None):
+        super().__init__(api_key)
+        try:
+            from openai import OpenAI
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url=base_url or self.DEFAULT_BASE_URL
+            )
+        except ImportError:
+            raise RuntimeError("请安装 openai 库: pip install openai")
+    
+    def _convert_messages(self, messages: List[dict]) -> List[dict]:
+        converted = []
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content")
+            if isinstance(content, str):
+                converted.append({"role": role, "content": content})
+            elif isinstance(content, list):
+                new_content = []
+                for item in content:
+                    if isinstance(item, dict):
+                        if "text" in item:
+                            new_content.append({"type": "text", "text": item["text"]})
+                        elif "image" in item:
+                            import base64
+                            with open(item["image"], "rb") as f:
+                                image_data = base64.b64encode(f.read()).decode()
+                            new_content.append({
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/png;base64,{image_data}"}
+                            })
+                converted.append({"role": role, "content": new_content})
+        return converted
+    
+    def call_vlm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 120) -> str:
+        # DeepSeek 不原生支持 VLM，走 LLM 兼容路径
+        return self.call_llm(messages, model, max_retries, timeout)
+    
+    def call_llm(self, messages: List[dict], model: str, max_retries: int = 3, timeout: int = 60) -> str:
+        import time
+        for attempt in range(max_retries):
+            try:
+                print(f"[DeepSeek LLM] 调用 {model} (尝试 {attempt + 1}/{max_retries})...")
+                converted_messages = self._convert_messages(messages)
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=converted_messages,
+                    timeout=timeout,
+                )
+                print(f"[DeepSeek LLM] ✅ 调用成功")
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"[DeepSeek LLM] ⚠️ 调用出错: {type(e).__name__}: {e}")
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 3
+                    print(f"[DeepSeek LLM] 等待 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+                else:
+                    raise
+
+
 # 模型提供商工厂
 def create_model_client(provider: str, api_key: str, **kwargs) -> BaseModelClient:
     """
@@ -497,5 +565,7 @@ def create_model_client(provider: str, api_key: str, **kwargs) -> BaseModelClien
         return GeminiClient(api_key)
     elif provider == ModelProvider.DOUBAO:
         return DoubaoClient(api_key, kwargs.get("base_url", "https://ark.cn-beijing.volces.com/api/v3"))
+    elif provider == ModelProvider.DEEPSEEK:
+        return DeepSeekClient(api_key, kwargs.get("base_url"))
     else:
         raise ValueError(f"不支持的模型提供商: {provider}")

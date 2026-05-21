@@ -35,12 +35,48 @@ MODEL_DEFAULTS = {
     ModelProvider.DOUBAO: {
         "vlm": "doubao-seed-2-0-pro-260215",
         "llm": "doubao-seed-2-0-pro-260215"
+    },
+    ModelProvider.DEEPSEEK: {
+        "vlm": "deepseek-v4-flash",
+        "llm": "deepseek-v4-flash"
+    },
+    "recommended": {
+        "vlm": "qwen3.6-flash",
+        "llm": "qwen-plus"
     }
 }
 
 
+# 模型名前缀 → Provider 自动路由表（允许 recommended 模式下跨 provider 调用）
+_MODEL_PROVIDER_ROUTES = {
+    "deepseek-": ModelProvider.DEEPSEEK,
+    "doubao-": ModelProvider.DOUBAO,
+}
+
 # 全局客户端缓存
 _client_cache = {}
+
+
+def _resolve_client_for_model(model: str):
+    """根据模型名自动选择客户端（支持跨 provider 调用）。"""
+    for prefix, provider in _MODEL_PROVIDER_ROUTES.items():
+        if model.startswith(prefix):
+            # 缓存该 provider 的客户端
+            if provider not in _client_cache:
+                api_key = os.getenv(f"{provider.upper()}_API_KEY")
+                if not api_key:
+                    raise RuntimeError(
+                        f"模型 {model} 需要 {provider.upper()} 提供商，"
+                        f"请设置 {provider.upper()}_API_KEY 环境变量"
+                    )
+                kwargs = {}
+                if provider == ModelProvider.DEEPSEEK:
+                    kwargs["base_url"] = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+                elif provider == ModelProvider.DOUBAO:
+                    kwargs["base_url"] = os.getenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+                _client_cache[provider] = create_model_client(provider, api_key, **kwargs)
+            return _client_cache[provider]
+    return None  # 使用默认 get_model_client()
 
 
 def get_model_client():
@@ -61,6 +97,8 @@ def get_model_client():
         api_key = os.getenv("GEMINI_API_KEY")
     elif provider == ModelProvider.DOUBAO:
         api_key = os.getenv("DOUBAO_API_KEY")
+    elif provider == ModelProvider.DEEPSEEK:
+        api_key = os.getenv("DEEPSEEK_API_KEY")
     
     if not api_key:
         raise RuntimeError(
@@ -138,7 +176,8 @@ def call_llm(
         # 使用提供商的默认 LLM 模型
         model = MODEL_DEFAULTS.get(provider, MODEL_DEFAULTS[ModelProvider.QWEN])["llm"]
     
-    client = get_model_client()
+    # 根据模型名前缀自动路由到对应客户端（支持跨 provider 调用，如 deepseek-xxx）
+    client = _resolve_client_for_model(model) or get_model_client()
     return client.call_llm(messages, model, max_retries, timeout)
 
 

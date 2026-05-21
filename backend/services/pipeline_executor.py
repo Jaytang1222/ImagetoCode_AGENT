@@ -73,14 +73,35 @@ class PipelineExecutor:
         """
         # 设置模型配置环境变量（如果提供）
         original_env = {}
-        if model_provider:
+        
+        # 解析模型配置
+        agent1_vlm = agent2_vlm = validator_vlm = None
+        agent3_llm = agent4_llm = None
+        actual_provider = model_provider
+        
+        if model_provider == "recommended":
+            actual_provider = "qwen"
+            agent1_vlm = "qwen3.6-plus"
+            agent2_vlm = "qwen3.6-flash"
+            agent3_llm = "deepseek-v4-flash"
+            agent4_llm = "deepseek-v4-flash"
+            validator_vlm = "qwen3.6-flash"
+            pipeline_logger.info(
+                f"[{self.pipeline_id}] 使用推荐模型: "
+                f"Agent1=qwen3.6-plus, Agent2/Validator=qwen3.6-flash, Agent3/4=deepseek-v4-flash"
+            )
+        
+        if actual_provider:
             original_env["MODEL_PROVIDER"] = os.environ.get("MODEL_PROVIDER")
-            os.environ["MODEL_PROVIDER"] = model_provider
-            pipeline_logger.info(f"[{self.pipeline_id}] 使用模型提供商: {model_provider}")
+            os.environ["MODEL_PROVIDER"] = actual_provider
+            pipeline_logger.info(f"[{self.pipeline_id}] 使用模型提供商: {actual_provider}")
         
         try:
             return self._run_pipeline_internal(
-                input_chart_image, out_dir, max_loops, threshold
+                input_chart_image, out_dir, max_loops, threshold,
+                agent1_vlm=agent1_vlm, agent2_vlm=agent2_vlm,
+                agent3_llm=agent3_llm, agent4_llm=agent4_llm,
+                validator_vlm=validator_vlm,
             )
         finally:
             # 恢复原始环境变量
@@ -96,6 +117,11 @@ class PipelineExecutor:
         out_dir: str,
         max_loops: int,
         threshold: float,
+        agent1_vlm: Optional[str] = None,
+        agent2_vlm: Optional[str] = None,
+        agent3_llm: Optional[str] = None,
+        agent4_llm: Optional[str] = None,
+        validator_vlm: Optional[str] = None,
     ) -> Tuple[bool, Optional[str], Optional[str], str]:
         """内部流水线执行逻辑"""
         os.makedirs(out_dir, exist_ok=True)
@@ -104,6 +130,7 @@ class PipelineExecutor:
 
         last_summary = ""
         code: Optional[str] = None
+        cached_chart_type: Optional[str] = None
 
         for loop in range(max_loops):
             pipeline_logger.info(f"[{self.pipeline_id}] 第 {loop + 1}/{max_loops} 轮")
@@ -120,7 +147,7 @@ class PipelineExecutor:
                         input_chart_image_path=input_chart_image,
                         preset=Agent1Preset(out_dir=out_dir, dispatch_to_agents=False),
                         extra_feedback=None,
-                        vlm_model=None,
+                        vlm_model=agent1_vlm,
                     )
                     code = agent1_result.generated_code
                     
@@ -158,7 +185,7 @@ class PipelineExecutor:
             self._send_status("agent2", "running", "视觉评判", 0.0, "正在对比图表...")
             
             try:
-                chart_report = agent2_chart_evaluation_report(input_chart_image, png)
+                chart_report = agent2_chart_evaluation_report(input_chart_image, png, vlm_model=agent2_vlm)
                 Path(os.path.join(out_dir, f"report_agent2_round{loop+1}.txt")).write_text(
                     chart_report, encoding="utf-8"
                 )
@@ -173,7 +200,7 @@ class PipelineExecutor:
             self._send_status("agent3", "running", "代码评判", 0.0, "正在评估代码...")
             
             try:
-                code_report = agent3_code_evaluation_report(code, chart_report)
+                code_report = agent3_code_evaluation_report(code, chart_report, llm_model=agent3_llm)
                 Path(os.path.join(out_dir, f"report_agent3_round{loop+1}.txt")).write_text(
                     code_report, encoding="utf-8"
                 )
@@ -188,7 +215,7 @@ class PipelineExecutor:
             self._send_status("agent4", "running", "代码优化", 0.0, "正在优化代码...")
             
             try:
-                code_new = agent4_feedback_optimize_code(code, code_report, chart_report)
+                code_new = agent4_feedback_optimize_code(code, code_report, chart_report, llm_model=agent4_llm)
                 Path(
                     os.path.join(out_dir, f"current_matplotlib_after_agent4_r{loop+1}.py")
                 ).write_text(code_new, encoding="utf-8")
@@ -218,8 +245,15 @@ class PipelineExecutor:
                 threshold=threshold,
                 chart_report=chart_report,
                 code_report=code_report,
+                vlm_model=validator_vlm,
+                current_code=code,
+                cached_chart_type=cached_chart_type,
             )
             pipeline_logger.info(f"[{self.pipeline_id}] 验证结果: score={score:.4f} pass={ok} | {last_summary}")
+            
+            # 缓存图表类型供后续轮次复用（避免重复 VLM 调用）
+            if cached_chart_type is None:
+                cached_chart_type = detailed_result.get("chart_type", "unknown")
 
             # 保存结构化的验证结果
             validator_output = {

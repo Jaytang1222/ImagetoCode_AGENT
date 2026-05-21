@@ -18,7 +18,7 @@ class PipelineConfig(BaseModel):
     image_path: str
     max_loops: int = Field(default=5, ge=1, le=10)
     threshold: float = Field(default=0.75, ge=0, le=1)
-    model_provider: Optional[str] = Field(default="qwen", description="模型提供商 (qwen, openai, claude, gemini, deepseek, glm)")
+    model_provider: Optional[str] = Field(default="qwen", description="模型提供商 (recommended, qwen, openai, gemini, doubao)")
 
 # 流水线启动响应
 class PipelineStartResponse(BaseModel):

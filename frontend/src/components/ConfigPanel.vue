@@ -7,6 +7,7 @@
       <div class="form-group">
         <label class="form-label">模型提供商</label>
         <select v-model="localConfig.modelProvider" class="apple-select">
+          <option value="recommended">千问 + deepseekV4混合输出</option>
           <option value="qwen">阿里云通义千问 (Qwen)</option>
           <option value="openai">OpenAI GPT</option>
           <option value="gemini">Google Gemini</option>

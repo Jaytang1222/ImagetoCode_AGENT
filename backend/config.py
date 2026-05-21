@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).parent.parent
 
 # 服务器配置
 SERVER_HOST = os.getenv("SERVER_HOST", "localhost")
-SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
+SERVER_PORT = int(os.getenv("SERVER_PORT", "8001"))
 BASE_URL = os.getenv("BASE_URL", f"http://{SERVER_HOST}:{SERVER_PORT}")
 
 # API配置 - 多模型支持
@@ -25,6 +25,7 @@ QWEN_API_KEY = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")  # �
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DOUBAO_API_KEY = os.getenv("DOUBAO_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 # OpenAI 兼容的自定义 Base URL (可选)
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
